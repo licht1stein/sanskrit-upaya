@@ -1,11 +1,11 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
-  name = "sanskrit-mitra-dev";
+  name = "sanskrit-upaya-dev";
 
   buildInputs = with pkgs; [
     # Go toolchain
-    go
+    go_1_24
 
     # Fyne dependencies (Linux)
     pkg-config
@@ -22,12 +22,12 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    echo "Sanskrit Mitra development environment"
+    echo "Sanskrit Upaya development environment"
     echo ""
     echo "Commands:"
     echo "  go run ./cmd/desktop  - Run the app"
     echo "  go run ./cmd/indexer  - Build database"
-    echo "  go build -o sanskrit-mitra ./cmd/desktop  - Build binary"
+    echo "  go build -o sanskrit-upaya ./cmd/desktop  - Build binary"
     echo ""
     echo "Releases are built via GitHub Actions on tag push."
   '';
