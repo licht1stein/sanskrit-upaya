@@ -306,7 +306,7 @@ func main() {
 	}
 	applyZoom(zoomPercent)
 
-	w := a.NewWindow("Sanskrit Upaya")
+	w := a.NewWindow("Sanskrit Upāya")
 	w.Resize(fyne.NewSize(1100, 700))
 
 	// If database doesn't exist or needs update, download it first
@@ -320,7 +320,7 @@ func main() {
 			titleLabel = widget.NewLabel("Dictionary database needs to be re-downloaded (~670 MB).")
 			subtitleLabel = widget.NewLabel("This may be due to an app update or corrupted data.")
 		} else {
-			titleLabel = widget.NewLabel("Sanskrit Upaya needs to download the dictionary database (~670 MB).")
+			titleLabel = widget.NewLabel("Sanskrit Upāya needs to download the dictionary database (~670 MB).")
 			subtitleLabel = widget.NewLabel("This only happens once.")
 		}
 
@@ -1422,7 +1422,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	// Settings/About button (cog icon)
 	settingsBtn := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		// About dialog
-		aboutTitle := widget.NewLabel("Sanskrit Upaya")
+		aboutTitle := widget.NewLabel("Sanskrit Upāya")
 		aboutTitle.TextStyle = fyne.TextStyle{Bold: true}
 		aboutTitle.Alignment = fyne.TextAlignCenter
 

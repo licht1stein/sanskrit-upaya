@@ -75,16 +75,27 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Build
+      - name: Install Fyne CLI
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+
+      - name: Build .app bundle
         env:
           GOARCH: amd64
+          CGO_ENABLED: 1
         run: |
-          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel ./cmd/desktop
+          fyne package -os darwin -release -appVersion ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg_contents
+          mv "Sanskrit Upaya.app" dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+          hdiutil create -volname "Sanskrit Upaya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel
-          path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel
+          name: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg
+          path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg
 
   build-macos-arm:
     runs-on: macos-latest  # Apple Silicon runner
@@ -100,16 +111,27 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Build
+      - name: Install Fyne CLI
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+
+      - name: Build .app bundle
         env:
           GOARCH: arm64
+          CGO_ENABLED: 1
         run: |
-          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon ./cmd/desktop
+          fyne package -os darwin -release -appVersion ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg_contents
+          mv "Sanskrit Upaya.app" dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+          hdiutil create -volname "Sanskrit Upaya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon
-          path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon
+          name: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg
+          path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg
 
   release:
     needs: [build-linux, build-windows, build-macos-intel, build-macos-arm]
