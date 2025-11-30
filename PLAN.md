@@ -1,0 +1,3 @@
+- Starred articles tags
+- Starred articles as separate window
+- Article notes (automatically adds to starred)

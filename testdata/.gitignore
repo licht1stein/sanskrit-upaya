@@ -1,0 +1,2 @@
+# No .db files in testdata - we use in-memory databases only
+*.db
