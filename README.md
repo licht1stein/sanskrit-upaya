@@ -38,19 +38,36 @@ A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fy
 
 ## Installation
 
-### macOS
-
-[Homebrew](https://brew.sh/) is the standard package manager for macOS. Since macOS blocks unsigned apps, Homebrew is the easiest way to install Sanskrit Upaya.
+### macOS (Homebrew)
 
 ```bash
 brew install licht1stein/tap/sanskrit-upaya
 ```
+
+After installation, launch the app from terminal:
+
+```bash
+sanskrit-upaya
+```
+
+To keep it in your dock, right-click the dock icon and select **Options → Keep in Dock**.
 
 To update:
 
 ```bash
 brew upgrade sanskrit-upaya
 ```
+
+<details>
+<summary>Why Homebrew?</summary>
+
+macOS has strict security measures (Gatekeeper) that block apps from "unidentified developers" - meaning anyone who hasn't paid Apple $99/year for a developer certificate.
+
+Pre-built binaries trigger warnings like _"Sanskrit Upāya can't be opened because Apple cannot check it for malicious software"_. Recent macOS versions make bypassing this increasingly difficult.
+
+Homebrew builds the app locally on your machine, bypassing Gatekeeper entirely since the binary wasn't "downloaded from the internet". The tradeoff is a longer install time (compiling Go + building the app bundle), but it just works.
+
+</details>
 
 ### Linux
 
