@@ -78,7 +78,7 @@ Add to your flake inputs:
 }
 ```
 
-### Windows
+### Windows / Linux (binary)
 
 Download the latest release from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
 
