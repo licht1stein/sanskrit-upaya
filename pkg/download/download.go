@@ -2,6 +2,8 @@
 package download
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +21,10 @@ const (
 
 	// HeaderName is the custom header name for authentication.
 	HeaderName = "X-Sanskrit-Mitra"
+
+	// ExpectedChecksum is the SHA256 checksum of the database file.
+	// Update this when the database is updated on the server.
+	ExpectedChecksum = "2eeb4a92e8da19b24e4889ce15d57ea9b41ec4db29327116a9dd3e614c547b34"
 )
 
 // ProgressFunc is called during download with bytes downloaded and total size.
@@ -52,17 +58,74 @@ func GetDatabasePath() (string, error) {
 	return filepath.Join(dataDir, "sanskrit.db"), nil
 }
 
-// DatabaseExists checks if the database file exists.
-func DatabaseExists() bool {
+// DatabaseStatus represents the state of the local database.
+type DatabaseStatus int
+
+const (
+	DatabaseMissing DatabaseStatus = iota
+	DatabaseValid
+	DatabaseNeedsUpdate // Checksum mismatch - corrupted or new version available
+)
+
+// CheckDatabase checks the database file status.
+func CheckDatabase() DatabaseStatus {
 	dbPath, err := GetDatabasePath()
 	if err != nil {
-		return false
+		return DatabaseMissing
 	}
 	_, err = os.Stat(dbPath)
-	return err == nil
+	if err != nil {
+		return DatabaseMissing
+	}
+
+	// If no expected checksum is set, just check file exists
+	if ExpectedChecksum == "" {
+		return DatabaseValid
+	}
+
+	// Verify checksum
+	checksum, err := computeFileChecksum(dbPath)
+	if err != nil {
+		return DatabaseNeedsUpdate
+	}
+	if checksum != ExpectedChecksum {
+		return DatabaseNeedsUpdate
+	}
+	return DatabaseValid
+}
+
+// DatabaseExists checks if the database file exists and has valid checksum.
+func DatabaseExists() bool {
+	return CheckDatabase() == DatabaseValid
+}
+
+// computeFileChecksum calculates SHA256 checksum of a file.
+func computeFileChecksum(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// GetDatabaseChecksum returns the checksum of the existing database file.
+// Useful for getting the checksum to set as ExpectedChecksum.
+func GetDatabaseChecksum() (string, error) {
+	dbPath, err := GetDatabasePath()
+	if err != nil {
+		return "", err
+	}
+	return computeFileChecksum(dbPath)
 }
 
 // Download downloads the database with progress reporting.
+// Returns the SHA256 checksum of the downloaded file.
 func Download(progress ProgressFunc) error {
 	dbPath, err := GetDatabasePath()
 	if err != nil {
@@ -100,9 +163,10 @@ func Download(progress ProgressFunc) error {
 	}
 	defer out.Close()
 
-	// Download with progress
+	// Download with progress, computing checksum as we go
 	var downloaded int64
 	buf := make([]byte, 32*1024) // 32KB buffer
+	hasher := sha256.New()
 
 	for {
 		n, err := resp.Body.Read(buf)
@@ -112,6 +176,7 @@ func Download(progress ProgressFunc) error {
 				os.Remove(tmpPath)
 				return fmt.Errorf("write file: %w", writeErr)
 			}
+			hasher.Write(buf[:n])
 			downloaded += int64(n)
 			if progress != nil {
 				progress(downloaded, totalSize)
@@ -126,8 +191,15 @@ func Download(progress ProgressFunc) error {
 		}
 	}
 
-	// Close file before renaming
+	// Close file before verifying and renaming
 	out.Close()
+
+	// Verify checksum if expected checksum is set
+	checksum := hex.EncodeToString(hasher.Sum(nil))
+	if ExpectedChecksum != "" && checksum != ExpectedChecksum {
+		os.Remove(tmpPath)
+		return fmt.Errorf("checksum mismatch: expected %s, got %s", ExpectedChecksum, checksum)
+	}
 
 	// Move temp file to final location
 	if err := os.Rename(tmpPath, dbPath); err != nil {

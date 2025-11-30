@@ -3,6 +3,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image/color"
 	"log"
@@ -27,6 +28,8 @@ import (
 	"github.com/licht1stein/sanskrit-mitra/pkg/state"
 	"github.com/licht1stein/sanskrit-mitra/pkg/transliterate"
 )
+
+var testDownload = flag.Bool("test-download", false, "Simulate download flow for testing")
 
 // scaledTheme wraps a base theme and scales all sizes
 type scaledTheme struct {
@@ -242,6 +245,7 @@ func createArticleContent(content string, searchTerm string) fyne.CanvasObject {
 }
 
 func main() {
+	flag.Parse()
 	log.Println("Starting Sanskrit Dictionary...")
 
 	// Open state/settings store
@@ -265,8 +269,14 @@ func main() {
 	// Database pointer - may be set after download
 	var db *search.DB
 
-	// Try to open database
-	if download.DatabaseExists() {
+	// Check database status
+	dbStatus := download.CheckDatabase()
+	if *testDownload {
+		dbStatus = download.DatabaseMissing // Force download flow for testing
+	}
+
+	// Try to open database if valid
+	if dbStatus == download.DatabaseValid {
 		db, err = search.Open(dbPath)
 		if err != nil {
 			log.Printf("Warning: Could not open database: %v", err)
@@ -296,62 +306,116 @@ func main() {
 	w := a.NewWindow("Sanskrit Mitra")
 	w.Resize(fyne.NewSize(1100, 700))
 
-	// If database doesn't exist, show download dialog
+	// If database doesn't exist or needs update, download it first
 	if db == nil {
-		// Create download UI
+		// Create download UI with appropriate message
 		progressBar := widget.NewProgressBar()
 		statusLabel := widget.NewLabel("Preparing to download dictionary database...")
+
+		var titleLabel, subtitleLabel *widget.Label
+		if dbStatus == download.DatabaseNeedsUpdate {
+			titleLabel = widget.NewLabel("Dictionary database needs to be re-downloaded (~670 MB).")
+			subtitleLabel = widget.NewLabel("This may be due to an app update or corrupted data.")
+		} else {
+			titleLabel = widget.NewLabel("Sanskrit Mitra needs to download the dictionary database (~670 MB).")
+			subtitleLabel = widget.NewLabel("This only happens once.")
+		}
+
 		downloadContent := container.NewVBox(
-			widget.NewLabel("Sanskrit Mitra needs to download the dictionary database (~670 MB)."),
-			widget.NewLabel("This only happens once."),
+			titleLabel,
+			subtitleLabel,
 			widget.NewLabel(""),
 			statusLabel,
 			progressBar,
 		)
 
-		// Show window with download prompt
 		w.SetContent(container.NewCenter(downloadContent))
-		w.Show()
+
+		// Channel to receive download result
+		type downloadResult struct {
+			db  *search.DB
+			err error
+		}
+		done := make(chan downloadResult, 1)
 
 		// Start download in background
 		go func() {
-			err := download.Download(func(downloaded, total int64) {
-				if total > 0 {
-					percent := float64(downloaded) / float64(total)
+			var downloadErr error
+
+			if *testDownload {
+				// Simulate download for testing
+				log.Println("Simulating download...")
+				total := int64(670 * 1024 * 1024) // 670 MB
+				for i := 0; i <= 10; i++ {
+					downloaded := total * int64(i) / 10
+					percent := float64(i) / 10.0
+					mb := downloaded / (1024 * 1024)
+					totalMb := total / (1024 * 1024)
 					fyne.Do(func() {
 						progressBar.SetValue(percent)
-						statusLabel.SetText(fmt.Sprintf("Downloading... %d / %d MB", downloaded/(1024*1024), total/(1024*1024)))
+						statusLabel.SetText(fmt.Sprintf("Downloading... %d / %d MB", mb, totalMb))
 					})
+					time.Sleep(200 * time.Millisecond)
 				}
-			})
+			} else {
+				// Real download
+				downloadErr = download.Download(func(downloaded, total int64) {
+					if total > 0 {
+						percent := float64(downloaded) / float64(total)
+						fyne.Do(func() {
+							progressBar.SetValue(percent)
+							statusLabel.SetText(fmt.Sprintf("Downloading... %d / %d MB", downloaded/(1024*1024), total/(1024*1024)))
+						})
+					}
+				})
+			}
+
+			if downloadErr != nil {
+				done <- downloadResult{nil, downloadErr}
+				return
+			}
 
 			fyne.Do(func() {
-				if err != nil {
-					dialog.ShowError(fmt.Errorf("Download failed: %v", err), w)
-					statusLabel.SetText("Download failed. Please restart the app to try again.")
+				statusLabel.SetText("Download complete! Loading database...")
+				progressBar.SetValue(1.0)
+			})
+
+			// Open the database
+			newDB, openErr := search.Open(dbPath)
+			done <- downloadResult{newDB, openErr}
+		}()
+
+		// Wait for download result in another goroutine, then build main UI
+		go func() {
+			result := <-done
+			fyne.Do(func() {
+				if result.err != nil {
+					dialog.ShowError(fmt.Errorf("Failed: %v", result.err), w)
+					statusLabel.SetText("Failed. Please restart the app to try again.")
 					return
 				}
 
-				// Open the downloaded database
-				db, err = search.Open(dbPath)
-				if err != nil {
-					dialog.ShowError(fmt.Errorf("Could not open database: %v", err), w)
-					return
-				}
-
-				// Restart the app UI (easiest way to reinitialize everything)
-				statusLabel.SetText("Download complete! Restarting...")
-				time.Sleep(500 * time.Millisecond)
-				w.Close()
-				// The app will need to be restarted - for now show success
-				dialog.ShowInformation("Success", "Dictionary downloaded! Please restart the app.", w)
+				log.Println("Database opened successfully after download")
+				db = result.db
+				// Build and show the main UI
+				buildMainUI(w, a, db, settings, zoomPercent, applyZoom)
 			})
 		}()
 
-		a.Run()
+		w.ShowAndRun()
+		if db != nil {
+			db.Close()
+		}
 		return
 	}
 
+	// Build and run main UI
+	buildMainUI(w, a, db, settings, zoomPercent, applyZoom)
+	w.ShowAndRun()
+}
+
+// buildMainUI constructs the main application interface
+func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store, zoomPercent int, applyZoom func(int)) {
 	// Search state
 	currentMode := search.ModeExact // Default to exact
 	var groupedResults []GroupedResult
@@ -1502,6 +1566,4 @@ func main() {
 
 	// Focus search on start
 	w.Canvas().Focus(searchEntry)
-
-	w.ShowAndRun()
 }
