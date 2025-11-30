@@ -28,12 +28,19 @@ import (
 )
 
 var testDownload = flag.Bool("test-download", false, "Simulate download flow for testing")
+var showVersion = flag.Bool("version", false, "Print version and exit")
 
 // Version is set at build time via ldflags
 var Version = "dev"
 
 func main() {
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(Version)
+		return
+	}
+
 	log.Println("Starting Sanskrit Dictionary...")
 
 	// Open state/settings store
