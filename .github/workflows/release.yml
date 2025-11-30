@@ -93,7 +93,7 @@ jobs:
         run: |
           mkdir -p dmg_contents
           mv "Sanskrit Upāya.app" dmg_contents/
-          cp README-macOS.html Icon.png "Enable App.command" dmg_contents/
+          cp README-macOS.html dmg_contents/README.html
           ln -s /Applications dmg_contents/Applications
           hdiutil create -volname "Sanskrit Upāya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg"
 
@@ -134,7 +134,7 @@ jobs:
         run: |
           mkdir -p dmg_contents
           mv "Sanskrit Upāya.app" dmg_contents/
-          cp README-macOS.html Icon.png "Enable App.command" dmg_contents/
+          cp README-macOS.html dmg_contents/README.html
           ln -s /Applications dmg_contents/Applications
           hdiutil create -volname "Sanskrit Upāya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg"
 
