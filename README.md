@@ -1,89 +1,93 @@
-# Sanskrit Dictionary (Go + Gio)
+# Sanskrit Upaya
 
-A fast, cross-platform Sanskrit dictionary application using SQLite FTS5 for search and Gio for the UI.
+A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fyne, and SQLite FTS5.
+
+**Upaya** (उपाय) means "method", "means", or "tool" in Sanskrit.
 
 ## Features
 
 - **Fast search**: SQLite FTS5 provides sub-millisecond exact/prefix searches
-- **Cross-platform**: Builds for Windows, macOS, Linux, Android, iOS, and Web (WASM)
+- **Cross-platform**: Windows, macOS (Intel & Apple Silicon), Linux
 - **Multiple search modes**:
   - Exact match
   - Prefix search
-  - Fuzzy (contains) search
-  - Reverse lookup (full-text search in definitions)
+  - Contains (fuzzy) search
+  - Full-text (reverse lookup in definitions)
 - **IAST ↔ Devanagari**: Automatic transliteration for search queries
 - **36 dictionaries**: All Cologne Digital Sanskrit Dictionaries
+- **Starred articles**: Save favorites for quick access
+- **Search history**: Track and recall previous searches
+- **Zoom control**: 50%-200% UI scaling
 
-## Building
+## Tech Stack
+
+- **Go** - Application language
+- **Fyne** - Cross-platform GUI framework
+- **SQLite FTS5** - Full-text search engine
+- **modernc.org/sqlite** - Pure Go SQLite (no CGO required)
+
+## Installation
+
+Download the latest release for your platform from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
+
+On first run, the app will download the dictionary database (~670 MB).
+
+## Building from Source
 
 ### Prerequisites
 
-- Go 1.22+
-- For desktop: C compiler (for CGO, optional)
-- For Android: Android SDK
-- For iOS: Xcode
+- Go 1.21+
+- For Linux: `libgl1-mesa-dev xorg-dev`
 
-### Build the indexer and create database
+### Using Nix (recommended)
 
 ```bash
-cd go-sanskrit
+# Enter development environment with all dependencies
+nix-shell
 
+# Run the app
+go run ./cmd/desktop
+
+# Build release binary
+go build -o sanskrit-upaya ./cmd/desktop
+```
+
+### Without Nix
+
+```bash
 # Download dependencies
 go mod tidy
 
-# Build the indexer
-go build -o indexer ./cmd/indexer
+# Run the app
+go run ./cmd/desktop
 
-# Create the database from JSON dictionaries
-./indexer -input ../components/dict-data/resources/dict-data/csl-json/ashtadhyayi.com/ -output sanskrit.db
-```
-
-### Build the desktop app
-
-```bash
-go build -o sanskrit ./cmd/desktop
-./sanskrit
-```
-
-### Build for other platforms
-
-```bash
-# Android
-go install gioui.org/cmd/gogio@latest
-gogio -target android -o sanskrit.apk ./cmd/desktop
-
-# iOS
-gogio -target ios -o Sanskrit.app ./cmd/desktop
-
-# Web (WASM)
-GOOS=js GOARCH=wasm go build -o sanskrit.wasm ./cmd/desktop
+# Build release binary
+go build -o sanskrit-upaya ./cmd/desktop
 ```
 
 ## Project Structure
 
 ```
-go-sanskrit/
+sanskrit-upaya/
 ├── cmd/
-│   ├── desktop/      # Main desktop application
-│   └── indexer/      # Build SQLite database from JSON
+│   ├── desktop/          # Fyne UI application
+│   └── indexer/          # Build SQLite database from JSON
 ├── pkg/
-│   ├── search/       # SQLite FTS5 search engine
-│   ├── transliterate/# IAST ↔ Devanagari conversion
-│   └── ui/           # Shared UI components (future)
-├── sanskrit.db       # Pre-built search database
-└── go.mod
+│   ├── download/         # First-run database download
+│   ├── search/           # SQLite FTS5 search engine
+│   ├── state/            # User settings, history, starred
+│   └── transliterate/    # IAST ↔ Devanagari conversion
+├── .github/workflows/    # GitHub Actions for releases
+└── shell.nix             # Nix development environment
 ```
 
-## Performance
+## Data Source
 
-Compared to the original Clojure implementation using regex scanning:
+Dictionary data from [Cologne Digital Sanskrit Dictionaries](https://www.sanskrit-lexicon.uni-koeln.de/):
 
-| Operation | Clojure (regex) | Go + FTS5 |
-|-----------|-----------------|-----------|
-| Exact match | 100-500ms | <1ms |
-| Prefix search | 100-500ms | <5ms |
-| Full-text | 1-5s | 10-50ms |
+- 36 dictionaries
+- ~1.3M words and articles
 
 ## License
 
-Same as the parent project.
+MIT
