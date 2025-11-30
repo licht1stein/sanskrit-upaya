@@ -246,3 +246,70 @@ jobs:
           git add flake.nix flake.lock
           git commit -m "chore: update flake for ${{ steps.version.outputs.VERSION }}"
           git push
+
+  update-scoop:
+    needs: [release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout scoop-bucket
+        uses: actions/checkout@v4
+        with:
+          repository: licht1stein/scoop-bucket
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION_NUM=${VERSION#v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_NUM=$VERSION_NUM" >> $GITHUB_OUTPUT
+
+      - name: Wait for release assets
+        run: sleep 30
+
+      - name: Get hash of Windows binary
+        id: hash
+        run: |
+          URL="https://github.com/licht1stein/sanskrit-upaya/releases/download/${{ steps.version.outputs.VERSION }}/sanskrit-upaya-${{ steps.version.outputs.VERSION }}-windows-amd64.exe"
+          HASH=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Update manifest
+        run: |
+          cat > bucket/sanskrit-upaya.json << 'EOF'
+          {
+              "version": "${{ steps.version.outputs.VERSION_NUM }}",
+              "description": "Cross-platform Sanskrit dictionary with fast full-text search across 36 digitized dictionaries",
+              "homepage": "https://github.com/licht1stein/sanskrit-upaya",
+              "license": "MIT",
+              "architecture": {
+                  "64bit": {
+                      "url": "https://github.com/licht1stein/sanskrit-upaya/releases/download/v${{ steps.version.outputs.VERSION_NUM }}/sanskrit-upaya-v${{ steps.version.outputs.VERSION_NUM }}-windows-amd64.exe#/sanskrit-upaya.exe",
+                      "hash": "${{ steps.hash.outputs.HASH }}"
+                  }
+              },
+              "bin": "sanskrit-upaya.exe",
+              "shortcuts": [
+                  ["sanskrit-upaya.exe", "Sanskrit Upaya"]
+              ],
+              "checkver": "github",
+              "autoupdate": {
+                  "architecture": {
+                      "64bit": {
+                          "url": "https://github.com/licht1stein/sanskrit-upaya/releases/download/v$version/sanskrit-upaya-v$version-windows-amd64.exe#/sanskrit-upaya.exe"
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/sanskrit-upaya.json
+          git commit -m "Update sanskrit-upaya to ${{ steps.version.outputs.VERSION }}"
+          git push
