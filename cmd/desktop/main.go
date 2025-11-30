@@ -31,6 +31,9 @@ import (
 
 var testDownload = flag.Bool("test-download", false, "Simulate download flow for testing")
 
+// Version is set at build time via ldflags
+var Version = "dev"
+
 // scaledTheme wraps a base theme and scales all sizes
 type scaledTheme struct {
 	base  fyne.Theme
@@ -1464,10 +1467,17 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		toolbar,
 	)
 
+	// Version label (right side of status bar)
+	versionLabel := widget.NewLabel(Version)
+	versionLabel.Importance = widget.LowImportance
+
+	// Status bar: status text on left, version on right
+	statusBar := container.NewBorder(nil, nil, nil, versionLabel, statusText)
+
 	// Main layout with status bar at bottom
 	content := container.NewBorder(
 		container.NewVBox(topBar, widget.NewSeparator()),
-		statusText,
+		statusBar,
 		nil, nil,
 		mainContent,
 	)
