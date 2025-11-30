@@ -27,6 +27,20 @@
 
             nativeBuildInputs = with pkgs; [
               pkg-config
+              copyDesktopItems
+            ];
+
+            desktopItems = [
+              (pkgs.makeDesktopItem {
+                name = "sanskrit-upaya";
+                desktopName = "Sanskrit Upāya";
+                comment = "Fast Sanskrit dictionary with full-text search across 36 dictionaries";
+                exec = "sanskrit-upaya";
+                icon = "sanskrit-upaya";
+                terminal = false;
+                categories = [ "Education" "Dictionary" "Literature" ];
+                keywords = [ "Sanskrit" "Dictionary" "IAST" "Devanagari" ];
+              })
             ];
 
             buildInputs = with pkgs; [
@@ -48,6 +62,7 @@
 
             postInstall = ''
               mv $out/bin/desktop $out/bin/sanskrit-upaya
+              install -Dm644 $src/Icon.png $out/share/icons/hicolor/256x256/apps/sanskrit-upaya.png
             '';
 
             meta = with pkgs.lib; {
