@@ -218,3 +218,4 @@ Dictionary data from [Cologne Digital Sanskrit Dictionaries](https://www.sanskri
 1. **"Database not loaded"** - Run indexer first to create `sanskrit.db`
 2. **Devanagari not rendering** - Install Noto Sans Devanagari font
 3. **Slow first search** - Normal, database is memory-mapped on first access
+- Always build ./sanskrit locally

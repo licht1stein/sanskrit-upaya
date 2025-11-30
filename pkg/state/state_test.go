@@ -68,21 +68,6 @@ func TestGetSet(t *testing.T) {
 	}
 }
 
-func TestGetDefault(t *testing.T) {
-	store := createTestStore(t)
-
-	// Non-existent key returns default
-	if got := store.GetDefault("missing", "default"); got != "default" {
-		t.Errorf("GetDefault(missing) = %v, want default", got)
-	}
-
-	// Existing key returns value
-	store.Set("exists", "actual")
-	if got := store.GetDefault("exists", "default"); got != "actual" {
-		t.Errorf("GetDefault(exists) = %v, want actual", got)
-	}
-}
-
 func TestGetSetBool(t *testing.T) {
 	store := createTestStore(t)
 
@@ -108,33 +93,6 @@ func TestGetSetBool(t *testing.T) {
 	}
 	if got := store.GetBool("flag", true); got {
 		t.Error("GetBool after SetBool(false) = true, want false")
-	}
-}
-
-func TestDelete(t *testing.T) {
-	store := createTestStore(t)
-
-	// Set a value
-	if err := store.Set("key", "value"); err != nil {
-		t.Fatalf("Set() error = %v", err)
-	}
-	if got := store.Get("key"); got != "value" {
-		t.Fatalf("Setup failed: Get(key) = %v, want value", got)
-	}
-
-	// Delete it
-	if err := store.Delete("key"); err != nil {
-		t.Fatalf("Delete() error = %v", err)
-	}
-
-	// Verify it's gone
-	if got := store.Get("key"); got != "" {
-		t.Errorf("Get after Delete = %v, want empty", got)
-	}
-
-	// Delete non-existent key should not error
-	if err := store.Delete("nonexistent"); err != nil {
-		t.Errorf("Delete(nonexistent) error = %v, want nil", err)
 	}
 }
 
@@ -180,36 +138,6 @@ func TestAddHistoryDuplicates(t *testing.T) {
 	history := store.GetRecentHistory(10)
 	if len(history) != 1 {
 		t.Errorf("GetRecentHistory() got %d entries, want 1 (duplicates should update)", len(history))
-	}
-}
-
-func TestSearchHistory(t *testing.T) {
-	store := createTestStore(t)
-
-	// Add test data
-	queries := []string{"dharma", "dharani", "yoga", "yogi"}
-	for _, q := range queries {
-		store.AddHistory(q)
-	}
-
-	tests := []struct {
-		prefix string
-		want   int
-	}{
-		{"dhar", 2}, // dharma, dharani
-		{"yoga", 1}, // yoga
-		{"yog", 2},  // yoga, yogi
-		{"kar", 0},  // no matches
-		{"", 4},     // empty prefix matches all
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.prefix, func(t *testing.T) {
-			results := store.SearchHistory(tt.prefix, 10)
-			if len(results) != tt.want {
-				t.Errorf("SearchHistory(%v) got %d results, want %d", tt.prefix, len(results), tt.want)
-			}
-		})
 	}
 }
 
@@ -440,21 +368,6 @@ func TestGetRecentHistoryLimit(t *testing.T) {
 	}
 }
 
-func TestSearchHistoryLimit(t *testing.T) {
-	store := createTestStore(t)
-
-	// Add many entries with same prefix
-	for i := 0; i < 20; i++ {
-		store.AddHistory(fmt.Sprintf("test%02d", i))
-	}
-
-	// Request only 5 matching entries
-	results := store.SearchHistory("test", 5)
-	if len(results) != 5 {
-		t.Errorf("SearchHistory(test, 5) got %d entries, want 5", len(results))
-	}
-}
-
 func TestGetStarredArticlesOrder(t *testing.T) {
 	store := createTestStore(t)
 
@@ -506,12 +419,6 @@ func TestOpenInvalidPath(t *testing.T) {
 
 func TestEmptyResults(t *testing.T) {
 	store := createTestStore(t)
-
-	// Search in empty history
-	results := store.SearchHistory("anything", 10)
-	if results != nil && len(results) > 0 {
-		t.Errorf("SearchHistory on empty store = %v, want nil or empty", results)
-	}
 
 	recent := store.GetRecentHistory(10)
 	if recent != nil && len(recent) > 0 {

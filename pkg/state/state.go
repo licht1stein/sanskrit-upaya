@@ -85,15 +85,6 @@ func (s *Store) Get(key string) string {
 	return value
 }
 
-// GetDefault retrieves a value by key, returning defaultVal if not found.
-func (s *Store) GetDefault(key, defaultVal string) string {
-	val := s.Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	return val
-}
-
 // Set stores a key-value pair.
 func (s *Store) Set(key, value string) error {
 	_, err := s.db.Exec(`
@@ -119,12 +110,6 @@ func (s *Store) SetBool(key string, value bool) error {
 		strVal = "true"
 	}
 	return s.Set(key, strVal)
-}
-
-// Delete removes a key-value pair.
-func (s *Store) Delete(key string) error {
-	_, err := s.db.Exec("DELETE FROM settings WHERE key = ?", key)
-	return err
 }
 
 // AddHistory adds or updates a search query in history.
@@ -156,29 +141,6 @@ func (s *Store) AddHistory(query string) error {
 	}
 
 	return tx.Commit()
-}
-
-// SearchHistory returns history entries matching the prefix, ordered by frequency and recency.
-func (s *Store) SearchHistory(prefix string, limit int) []string {
-	rows, err := s.db.Query(`
-		SELECT query FROM history
-		WHERE query LIKE ?
-		ORDER BY count DESC, last_used DESC
-		LIMIT ?
-	`, prefix+"%", limit)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	var results []string
-	for rows.Next() {
-		var query string
-		if err := rows.Scan(&query); err == nil {
-			results = append(results, query)
-		}
-	}
-	return results
 }
 
 // GetRecentHistory returns the most recent history entries.

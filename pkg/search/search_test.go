@@ -4,144 +4,91 @@ import (
 	"testing"
 )
 
-// Helper to create test database with sample data
+// createTestDB creates an in-memory database with sample dictionary data.
 func createTestDB(t *testing.T) *DB {
 	t.Helper()
-	db, err := OpenMemory()
+	
+	db, err := Open(":memory:")
 	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
+		t.Fatalf("Open() error = %v", err)
 	}
-	if err := db.InitSchema(); err != nil {
+
+	if err := db.InitSchemaForBulkInsert(); err != nil {
 		db.Close()
-		t.Fatalf("InitSchema() error = %v", err)
+		t.Fatalf("InitSchemaForBulkInsert() error = %v", err)
+	}
+
+	bi, err := db.NewBulkInserter()
+	if err != nil {
+		db.Close()
+		t.Fatalf("NewBulkInserter() error = %v", err)
 	}
 
 	// Insert test dictionaries
-	if err := db.InsertDict("mw", "Monier-Williams", "sa", "en", true); err != nil {
+	if err := bi.InsertDict("mw", "Monier-Williams", "sa", "en", true); err != nil {
+		db.Close()
 		t.Fatalf("InsertDict(mw) error = %v", err)
 	}
-	if err := db.InsertDict("ap90", "Apte Sanskrit-English", "sa", "en", true); err != nil {
+	if err := bi.InsertDict("ap90", "Apte Sanskrit-English", "sa", "en", true); err != nil {
+		db.Close()
 		t.Fatalf("InsertDict(ap90) error = %v", err)
 	}
-	if err := db.InsertDict("pw", "Sanskrit-German Bohtlingk", "sa", "de", false); err != nil {
+	if err := bi.InsertDict("pw", "Sanskrit-German Bohtlingk", "sa", "de", false); err != nil {
+		db.Close()
 		t.Fatalf("InsertDict(pw) error = %v", err)
 	}
 
-	// Insert test data: dharma in both mw and ap90
-	id1, err := db.InsertArticle("mw", "dharma m. law, duty, virtue, righteousness, the yoga philosophy")
-	if err != nil {
-		t.Fatalf("InsertArticle(dharma/mw) error = %v", err)
-	}
-	if err := db.InsertWord("dharma", "धर्म", id1, "mw"); err != nil {
-		t.Fatalf("InsertWord(dharma/mw) error = %v", err)
-	}
-
-	id2, err := db.InsertArticle("ap90", "dharma m. religion, duty, piety")
-	if err != nil {
-		t.Fatalf("InsertArticle(dharma/ap90) error = %v", err)
-	}
-	if err := db.InsertWord("dharma", "धर्म", id2, "ap90"); err != nil {
-		t.Fatalf("InsertWord(dharma/ap90) error = %v", err)
+	// Insert test data
+	testData := []struct {
+		dictCode, word, wordDeva, content string
+	}{
+		{"mw", "dharma", "धर्म", "dharma m. law, duty, virtue, righteousness, the yoga philosophy"},
+		{"ap90", "dharma", "धर्म", "dharma m. religion, duty, piety"},
+		{"mw", "karma", "कर्म", "karma n. act, action, work, deed"},
+		{"mw", "yoga", "योग", "yoga m. union, connection, the yoga philosophy and practice"},
+		{"mw", "dharmakāya", "धर्मकाय", "dharmakāya m. the body of dharma, Buddhist term"},
+		{"mw", "arma", "अर्म", "arma n. weapon, arm"},
+		{"pw", "dharma", "धर्म", "dharma m. Gesetz, Pflicht, Tugend"},
 	}
 
-	// karma in mw only
-	id3, err := db.InsertArticle("mw", "karma n. act, action, work, deed")
-	if err != nil {
-		t.Fatalf("InsertArticle(karma) error = %v", err)
-	}
-	if err := db.InsertWord("karma", "कर्म", id3, "mw"); err != nil {
-		t.Fatalf("InsertWord(karma) error = %v", err)
-	}
-
-	// yoga
-	id4, err := db.InsertArticle("mw", "yoga m. union, connection, the yoga philosophy and practice")
-	if err != nil {
-		t.Fatalf("InsertArticle(yoga) error = %v", err)
-	}
-	if err := db.InsertWord("yoga", "योग", id4, "mw"); err != nil {
-		t.Fatalf("InsertWord(yoga) error = %v", err)
+	for _, td := range testData {
+		articleID, err := bi.InsertArticle(td.dictCode, td.content)
+		if err != nil {
+			db.Close()
+			t.Fatalf("InsertArticle() error = %v", err)
+		}
+		if err := bi.InsertWord(td.word, td.wordDeva, articleID, td.dictCode); err != nil {
+			db.Close()
+			t.Fatalf("InsertWord() error = %v", err)
+		}
 	}
 
-	// dharmakāya (longer word starting with dhar)
-	id5, err := db.InsertArticle("mw", "dharmakāya m. the body of dharma, Buddhist term")
-	if err != nil {
-		t.Fatalf("InsertArticle(dharmakāya) error = %v", err)
-	}
-	if err := db.InsertWord("dharmakāya", "धर्मकाय", id5, "mw"); err != nil {
-		t.Fatalf("InsertWord(dharmakāya) error = %v", err)
+	if err := bi.Commit(); err != nil {
+		db.Close()
+		t.Fatalf("Commit() error = %v", err)
 	}
 
-	// arma (substring test)
-	id6, err := db.InsertArticle("mw", "arma n. weapon, arm")
-	if err != nil {
-		t.Fatalf("InsertArticle(arma) error = %v", err)
-	}
-	if err := db.InsertWord("arma", "अर्म", id6, "mw"); err != nil {
-		t.Fatalf("InsertWord(arma) error = %v", err)
-	}
-
-	// Word in German dictionary
-	id7, err := db.InsertArticle("pw", "dharma m. Gesetz, Pflicht, Tugend")
-	if err != nil {
-		t.Fatalf("InsertArticle(dharma/pw) error = %v", err)
-	}
-	if err := db.InsertWord("dharma", "धर्म", id7, "pw"); err != nil {
-		t.Fatalf("InsertWord(dharma/pw) error = %v", err)
+	if err := db.RebuildFTS(); err != nil {
+		db.Close()
+		t.Fatalf("RebuildFTS() error = %v", err)
 	}
 
 	return db
 }
 
-func TestOpenMemory(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
-	defer db.Close()
-
-	if db == nil {
-		t.Error("OpenMemory() returned nil DB")
-	}
-	if db.db == nil {
-		t.Error("OpenMemory() DB.db is nil")
-	}
-}
-
 func TestClose(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
+	db := createTestDB(t)
 
-	err = db.Close()
+	err := db.Close()
 	if err != nil {
 		t.Errorf("Close() error = %v", err)
 	}
 }
 
-func TestInitSchema(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
-	defer db.Close()
-
-	err = db.InitSchema()
-	if err != nil {
-		t.Errorf("InitSchema() error = %v", err)
-	}
-
-	// Verify tables exist by inserting test data
-	err = db.InsertDict("test", "Test Dict", "sa", "en", false)
-	if err != nil {
-		t.Errorf("After InitSchema, InsertDict() error = %v", err)
-	}
-}
-
 func TestInitSchemaForBulkInsert(t *testing.T) {
-	db, err := OpenMemory()
+	db, err := Open(":memory:")
 	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
+		t.Fatalf("Open() error = %v", err)
 	}
 	defer db.Close()
 
@@ -150,17 +97,23 @@ func TestInitSchemaForBulkInsert(t *testing.T) {
 		t.Errorf("InitSchemaForBulkInsert() error = %v", err)
 	}
 
-	// Verify basic tables exist
-	err = db.InsertDict("test", "Test Dict", "sa", "en", false)
+	// Verify basic tables exist by using bulk inserter
+	bi, err := db.NewBulkInserter()
+	if err != nil {
+		t.Errorf("After InitSchemaForBulkInsert, NewBulkInserter() error = %v", err)
+		return
+	}
+	err = bi.InsertDict("test", "Test Dict", "sa", "en", false)
 	if err != nil {
 		t.Errorf("After InitSchemaForBulkInsert, InsertDict() error = %v", err)
 	}
+	bi.Commit()
 }
 
 func TestRebuildFTS(t *testing.T) {
-	db, err := OpenMemory()
+	db, err := Open(":memory:")
 	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
+		t.Fatalf("Open() error = %v", err)
 	}
 	defer db.Close()
 
@@ -169,16 +122,24 @@ func TestRebuildFTS(t *testing.T) {
 		t.Fatalf("InitSchemaForBulkInsert() error = %v", err)
 	}
 
-	// Insert data
-	if err := db.InsertDict("mw", "MW", "sa", "en", true); err != nil {
+	bi, err := db.NewBulkInserter()
+	if err != nil {
+		t.Fatalf("NewBulkInserter() error = %v", err)
+	}
+
+	if err := bi.InsertDict("mw", "MW", "sa", "en", true); err != nil {
 		t.Fatalf("InsertDict() error = %v", err)
 	}
-	id, err := db.InsertArticle("mw", "dharma m. law")
+	id, err := bi.InsertArticle("mw", "dharma m. law")
 	if err != nil {
 		t.Fatalf("InsertArticle() error = %v", err)
 	}
-	if err := db.InsertWord("dharma", "धर्म", id, "mw"); err != nil {
+	if err := bi.InsertWord("dharma", "धर्म", id, "mw"); err != nil {
 		t.Fatalf("InsertWord() error = %v", err)
+	}
+
+	if err := bi.Commit(); err != nil {
+		t.Fatalf("Commit() error = %v", err)
 	}
 
 	// Rebuild FTS
@@ -195,88 +156,6 @@ func TestRebuildFTS(t *testing.T) {
 		t.Errorf("Search after RebuildFTS() got %d results, want 1", len(results))
 	}
 }
-
-func TestInsertDict(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
-	defer db.Close()
-
-	if err := db.InitSchema(); err != nil {
-		t.Fatalf("InitSchema() error = %v", err)
-	}
-
-	tests := []struct {
-		name     string
-		code     string
-		dictName string
-		fromLang string
-		toLang   string
-		favorite bool
-	}{
-		{"basic", "mw", "Monier-Williams", "sa", "en", true},
-		{"no favorite", "ap90", "Apte", "sa", "en", false},
-		{"german", "pw", "PW", "sa", "de", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := db.InsertDict(tt.code, tt.dictName, tt.fromLang, tt.toLang, tt.favorite)
-			if err != nil {
-				t.Errorf("InsertDict() error = %v", err)
-			}
-		})
-	}
-}
-
-func TestInsertArticle(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
-	defer db.Close()
-
-	if err := db.InitSchema(); err != nil {
-		t.Fatalf("InitSchema() error = %v", err)
-	}
-	if err := db.InsertDict("mw", "MW", "sa", "en", true); err != nil {
-		t.Fatalf("InsertDict() error = %v", err)
-	}
-
-	id, err := db.InsertArticle("mw", "dharma m. law, duty")
-	if err != nil {
-		t.Errorf("InsertArticle() error = %v", err)
-	}
-	if id == 0 {
-		t.Error("InsertArticle() returned ID 0, want non-zero")
-	}
-}
-
-func TestInsertWord(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
-	defer db.Close()
-
-	if err := db.InitSchema(); err != nil {
-		t.Fatalf("InitSchema() error = %v", err)
-	}
-	if err := db.InsertDict("mw", "MW", "sa", "en", true); err != nil {
-		t.Fatalf("InsertDict() error = %v", err)
-	}
-	id, err := db.InsertArticle("mw", "dharma m. law")
-	if err != nil {
-		t.Fatalf("InsertArticle() error = %v", err)
-	}
-
-	err = db.InsertWord("dharma", "धर्म", id, "mw")
-	if err != nil {
-		t.Errorf("InsertWord() error = %v", err)
-	}
-}
-
 func TestSearchModeExact(t *testing.T) {
 	db := createTestDB(t)
 	defer db.Close()
@@ -787,9 +666,9 @@ func TestEscapeFTS(t *testing.T) {
 }
 
 func TestBulkInserter(t *testing.T) {
-	db, err := OpenMemory()
+	db, err := Open(":memory:")
 	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
+		t.Fatalf("Open() error = %v", err)
 	}
 	defer db.Close()
 
@@ -839,48 +718,6 @@ func TestBulkInserter(t *testing.T) {
 	}
 }
 
-func TestBulkInserterRollback(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
-	defer db.Close()
-
-	if err := db.InitSchemaForBulkInsert(); err != nil {
-		t.Fatalf("InitSchemaForBulkInsert() error = %v", err)
-	}
-
-	// Create bulk inserter
-	bi, err := db.NewBulkInserter()
-	if err != nil {
-		t.Fatalf("NewBulkInserter() error = %v", err)
-	}
-
-	// Insert data
-	if err := bi.InsertDict("mw", "MW", "sa", "en", true); err != nil {
-		t.Errorf("BulkInserter.InsertDict() error = %v", err)
-	}
-
-	// Rollback instead of commit
-	if err := bi.Rollback(); err != nil {
-		t.Errorf("BulkInserter.Rollback() error = %v", err)
-	}
-
-	// Rebuild FTS
-	if err := db.RebuildFTS(); err != nil {
-		t.Fatalf("RebuildFTS() error = %v", err)
-	}
-
-	// Verify data was NOT inserted
-	dicts, err := db.GetDicts()
-	if err != nil {
-		t.Fatalf("GetDicts() error = %v", err)
-	}
-	if len(dicts) != 0 {
-		t.Errorf("After rollback, got %d dicts, want 0", len(dicts))
-	}
-}
-
 func TestSearchResultOrdering(t *testing.T) {
 	db := createTestDB(t)
 	defer db.Close()
@@ -922,26 +759,27 @@ func TestSearchResultOrdering(t *testing.T) {
 }
 
 func TestSearchSpecialCharacters(t *testing.T) {
-	db, err := OpenMemory()
-	if err != nil {
-		t.Fatalf("OpenMemory() error = %v", err)
-	}
+	db := createTestDB(t)
 	defer db.Close()
 
-	if err := db.InitSchema(); err != nil {
-		t.Fatalf("InitSchema() error = %v", err)
+	// Note: createTestDB already inserts test data with special characters (dharma has ā, etc.)
+	// But we'll add a specific test word here
+	bi, err := db.NewBulkInserter()
+	if err != nil {
+		t.Fatalf("NewBulkInserter() error = %v", err)
 	}
-	if err := db.InsertDict("test", "Test", "sa", "en", false); err != nil {
-		t.Fatalf("InsertDict() error = %v", err)
-	}
-
-	// Insert word with special characters
-	id, err := db.InsertArticle("test", "rāma m. Rama, hero of Ramayana")
+	id, err := bi.InsertArticle("mw", "rāma m. Rama, hero of Ramayana")
 	if err != nil {
 		t.Fatalf("InsertArticle() error = %v", err)
 	}
-	if err := db.InsertWord("rāma", "राम", id, "test"); err != nil {
+	if err := bi.InsertWord("rāma", "राम", id, "mw"); err != nil {
 		t.Fatalf("InsertWord() error = %v", err)
+	}
+	if err := bi.Commit(); err != nil {
+		t.Fatalf("Commit() error = %v", err)
+	}
+	if err := db.RebuildFTS(); err != nil {
+		t.Fatalf("RebuildFTS() error = %v", err)
 	}
 
 	// Search with diacritics

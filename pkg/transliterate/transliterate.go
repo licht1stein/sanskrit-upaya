@@ -3,7 +3,6 @@ package transliterate
 
 import (
 	"strings"
-	"unicode"
 )
 
 // IAST to SLP1 mapping
@@ -192,22 +191,6 @@ func IsDevanagari(s string) bool {
 	return false
 }
 
-// NormalizeQuery normalizes a search query, returning both IAST and Devanagari forms.
-func NormalizeQuery(query string) (iast, deva string) {
-	query = strings.TrimSpace(query)
-
-	if IsDevanagari(query) {
-		// Already Devanagari, return as-is
-		// TODO: Add Devanagari to IAST conversion if needed
-		return query, query
-	}
-
-	// Assume IAST input
-	iast = strings.ToLower(query)
-	deva = IASTToDevanagari(iast)
-	return iast, deva
-}
-
 // ToSearchTerms returns the query in forms suitable for searching.
 func ToSearchTerms(query string) []string {
 	query = strings.TrimSpace(query)
@@ -250,14 +233,4 @@ func unique(strs []string) []string {
 		}
 	}
 	return result
-}
-
-// ContainsDevanagari checks if any character in s is Devanagari.
-func ContainsDevanagari(s string) bool {
-	for _, r := range s {
-		if unicode.Is(unicode.Devanagari, r) {
-			return true
-		}
-	}
-	return false
 }

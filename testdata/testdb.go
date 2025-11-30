@@ -9,12 +9,21 @@ import (
 // This provides a minimal but representative dataset for testing search modes,
 // dictionary filtering, and edge cases like diacritics and multi-dictionary words.
 func CreateTestDB() (*search.DB, error) {
-	db, err := search.OpenMemory()
+	// Open in-memory database
+	db, err := search.Open(":memory:")
 	if err != nil {
 		return nil, err
 	}
 
-	if err := db.InitSchema(); err != nil {
+	// Initialize schema (without triggers, for bulk insert)
+	if err := db.InitSchemaForBulkInsert(); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	// Create bulk inserter
+	bi, err := db.NewBulkInserter()
+	if err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -33,7 +42,7 @@ func CreateTestDB() (*search.DB, error) {
 	}
 
 	for _, d := range dicts {
-		if err := db.InsertDict(d.code, d.name, d.from, d.to, d.favorite); err != nil {
+		if err := bi.InsertDict(d.code, d.name, d.from, d.to, d.favorite); err != nil {
 			db.Close()
 			return nil, err
 		}
@@ -86,15 +95,27 @@ func CreateTestDB() (*search.DB, error) {
 	}
 
 	for _, td := range testData {
-		articleID, err := db.InsertArticle(td.dictCode, td.content)
+		articleID, err := bi.InsertArticle(td.dictCode, td.content)
 		if err != nil {
 			db.Close()
 			return nil, err
 		}
-		if err := db.InsertWord(td.word, td.wordDeva, articleID, td.dictCode); err != nil {
+		if err := bi.InsertWord(td.word, td.wordDeva, articleID, td.dictCode); err != nil {
 			db.Close()
 			return nil, err
 		}
+	}
+
+	// Commit the bulk insert transaction
+	if err := bi.Commit(); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	// Rebuild FTS indexes
+	if err := db.RebuildFTS(); err != nil {
+		db.Close()
+		return nil, err
 	}
 
 	return db, nil

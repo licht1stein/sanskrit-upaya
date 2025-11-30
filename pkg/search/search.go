@@ -72,81 +72,9 @@ func OpenForBulkInsert(path string) (*DB, error) {
 	return &DB{db: db}, nil
 }
 
-// OpenMemory opens an in-memory database (for testing or small datasets).
-func OpenMemory() (*DB, error) {
-	return Open(":memory:")
-}
-
 // Close closes the database.
 func (d *DB) Close() error {
 	return d.db.Close()
-}
-
-// InitSchema creates the FTS5 tables if they don't exist.
-func (d *DB) InitSchema() error {
-	schema := `
-	-- Dictionary metadata
-	CREATE TABLE IF NOT EXISTS dicts (
-		code TEXT PRIMARY KEY,
-		name TEXT NOT NULL,
-		from_lang TEXT,
-		to_lang TEXT,
-		favorite INTEGER DEFAULT 0
-	);
-
-	-- Articles (main content)
-	CREATE TABLE IF NOT EXISTS articles (
-		id INTEGER PRIMARY KEY,
-		dict_code TEXT NOT NULL,
-		content TEXT NOT NULL,
-		FOREIGN KEY (dict_code) REFERENCES dicts(code)
-	);
-
-	-- Word index for fast headword lookup
-	CREATE TABLE IF NOT EXISTS words (
-		id INTEGER PRIMARY KEY,
-		word_iast TEXT NOT NULL,
-		word_deva TEXT,
-		article_id INTEGER NOT NULL,
-		dict_code TEXT NOT NULL,
-		FOREIGN KEY (article_id) REFERENCES articles(id),
-		FOREIGN KEY (dict_code) REFERENCES dicts(code)
-	);
-
-	-- FTS5 virtual table for headword search (prefix + exact)
-	CREATE VIRTUAL TABLE IF NOT EXISTS words_fts USING fts5(
-		word_iast,
-		word_deva,
-		content='words',
-		content_rowid='id',
-		tokenize='unicode61 remove_diacritics 0'
-	);
-
-	-- FTS5 virtual table for full-text/reverse search
-	CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
-		content,
-		content='articles',
-		content_rowid='id',
-		tokenize='unicode61 remove_diacritics 0'
-	);
-
-	-- Triggers to keep FTS in sync
-	CREATE TRIGGER IF NOT EXISTS words_ai AFTER INSERT ON words BEGIN
-		INSERT INTO words_fts(rowid, word_iast, word_deva) VALUES (new.id, new.word_iast, new.word_deva);
-	END;
-
-	CREATE TRIGGER IF NOT EXISTS articles_ai AFTER INSERT ON articles BEGIN
-		INSERT INTO articles_fts(rowid, content) VALUES (new.id, new.content);
-	END;
-
-	-- Indexes for faster joins
-	CREATE INDEX IF NOT EXISTS idx_words_article ON words(article_id);
-	CREATE INDEX IF NOT EXISTS idx_words_dict ON words(dict_code);
-	CREATE INDEX IF NOT EXISTS idx_articles_dict ON articles(dict_code);
-	`
-
-	_, err := d.db.Exec(schema)
-	return err
 }
 
 // InitSchemaForBulkInsert creates schema without triggers (for faster bulk inserts).
@@ -301,48 +229,6 @@ func (b *BulkInserter) Commit() error {
 	b.stmtWord.Close()
 	b.stmtDict.Close()
 	return b.tx.Commit()
-}
-
-// Rollback rolls back the transaction.
-func (b *BulkInserter) Rollback() error {
-	b.stmtArticle.Close()
-	b.stmtWord.Close()
-	b.stmtDict.Close()
-	return b.tx.Rollback()
-}
-
-// InsertDict inserts a dictionary metadata record.
-func (d *DB) InsertDict(code, name, fromLang, toLang string, favorite bool) error {
-	fav := 0
-	if favorite {
-		fav = 1
-	}
-	_, err := d.db.Exec(
-		"INSERT OR REPLACE INTO dicts (code, name, from_lang, to_lang, favorite) VALUES (?, ?, ?, ?, ?)",
-		code, name, fromLang, toLang, fav,
-	)
-	return err
-}
-
-// InsertArticle inserts an article and returns its ID.
-func (d *DB) InsertArticle(dictCode, content string) (int64, error) {
-	result, err := d.db.Exec(
-		"INSERT INTO articles (dict_code, content) VALUES (?, ?)",
-		dictCode, content,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
-}
-
-// InsertWord inserts a word index entry.
-func (d *DB) InsertWord(wordIAST, wordDeva string, articleID int64, dictCode string) error {
-	_, err := d.db.Exec(
-		"INSERT INTO words (word_iast, word_deva, article_id, dict_code) VALUES (?, ?, ?, ?)",
-		wordIAST, wordDeva, articleID, dictCode,
-	)
-	return err
 }
 
 // SearchMode defines the type of search to perform.
@@ -509,11 +395,6 @@ type Dict struct {
 	FromLang string
 	ToLang   string
 	Favorite bool
-}
-
-// BeginBulkInsert starts a transaction for bulk inserts.
-func (d *DB) BeginBulkInsert() (*sql.Tx, error) {
-	return d.db.Begin()
 }
 
 // Optimize runs VACUUM and ANALYZE for query optimization.

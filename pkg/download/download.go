@@ -73,11 +73,6 @@ func CheckDatabase() DatabaseStatus {
 	return DatabaseValid
 }
 
-// DatabaseExists checks if the database file exists and has valid checksum.
-func DatabaseExists() bool {
-	return CheckDatabase() == DatabaseValid
-}
-
 // computeFileChecksum calculates SHA256 checksum of a file.
 func computeFileChecksum(path string) (string, error) {
 	f, err := os.Open(path)
@@ -91,16 +86,6 @@ func computeFileChecksum(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-// GetDatabaseChecksum returns the checksum of the existing database file.
-// Useful for getting the checksum to set as ExpectedChecksum.
-func GetDatabaseChecksum() (string, error) {
-	dbPath, err := GetDatabasePath()
-	if err != nil {
-		return "", err
-	}
-	return computeFileChecksum(dbPath)
 }
 
 // Download downloads the database with progress reporting.

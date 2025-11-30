@@ -52,66 +52,6 @@ func TestCheckDatabase_NeedsUpdate(t *testing.T) {
 	}
 }
 
-func TestDatabaseExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	os.Setenv("XDG_DATA_HOME", tmpDir)
-	defer os.Unsetenv("XDG_DATA_HOME")
-
-	// Initially doesn't exist
-	if DatabaseExists() {
-		t.Error("DatabaseExists() = true, want false (no file)")
-	}
-
-	// Create fake file (wrong checksum)
-	dbDir := filepath.Join(tmpDir, "sanskrit-dictionary")
-	os.MkdirAll(dbDir, 0755)
-	dbPath := filepath.Join(dbDir, "sanskrit.db")
-	os.WriteFile(dbPath, []byte("fake"), 0644)
-
-	// Still false because checksum doesn't match
-	if DatabaseExists() {
-		t.Error("DatabaseExists() = true, want false (wrong checksum)")
-	}
-}
-
-func TestGetDatabaseChecksum(t *testing.T) {
-	tmpDir := t.TempDir()
-	os.Setenv("XDG_DATA_HOME", tmpDir)
-	defer os.Unsetenv("XDG_DATA_HOME")
-
-	// Create directory and test file
-	dbDir := filepath.Join(tmpDir, "sanskrit-dictionary")
-	os.MkdirAll(dbDir, 0755)
-	dbPath := filepath.Join(dbDir, "sanskrit.db")
-
-	content := []byte("test database content")
-	os.WriteFile(dbPath, content, 0644)
-
-	// Calculate expected checksum
-	h := sha256.Sum256(content)
-	expected := hex.EncodeToString(h[:])
-
-	checksum, err := GetDatabaseChecksum()
-	if err != nil {
-		t.Fatalf("GetDatabaseChecksum() error = %v", err)
-	}
-
-	if checksum != expected {
-		t.Errorf("GetDatabaseChecksum() = %v, want %v", checksum, expected)
-	}
-}
-
-func TestGetDatabaseChecksum_NotExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	os.Setenv("XDG_DATA_HOME", tmpDir)
-	defer os.Unsetenv("XDG_DATA_HOME")
-
-	_, err := GetDatabaseChecksum()
-	if err == nil {
-		t.Error("GetDatabaseChecksum() expected error for non-existent file")
-	}
-}
-
 func TestComputeFileChecksum(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "test.txt")
 	content := []byte("hello world")

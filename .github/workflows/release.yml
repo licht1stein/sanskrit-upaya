@@ -10,7 +10,21 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
   build-linux:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +53,7 @@ jobs:
           path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-linux-amd64
 
   build-windows:
+    needs: [test]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,6 +77,7 @@ jobs:
           path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-windows-amd64.exe
 
   build-macos-intel:
+    needs: [test]
     runs-on: macos-13  # Intel runner
     steps:
       - uses: actions/checkout@v4
@@ -103,6 +119,7 @@ jobs:
           path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg
 
   build-macos-arm-14:
+    needs: [test]
     runs-on: macos-14  # macOS 14 Sonoma
     steps:
       - uses: actions/checkout@v4
@@ -144,6 +161,7 @@ jobs:
           path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-14-arm.dmg
 
   build-macos-arm-15:
+    needs: [test]
     runs-on: macos-15  # macOS 15 Sequoia
     steps:
       - uses: actions/checkout@v4
