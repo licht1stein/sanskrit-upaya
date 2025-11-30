@@ -8,7 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
+
+	"github.com/licht1stein/sanskrit-upaya/pkg/paths"
 )
 
 const (
@@ -30,32 +31,10 @@ const (
 // ProgressFunc is called during download with bytes downloaded and total size.
 type ProgressFunc func(downloaded, total int64)
 
-// GetDataDir returns the XDG data directory for the app.
-func GetDataDir() (string, error) {
-	dataHome := os.Getenv("XDG_DATA_HOME")
-	if dataHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dataHome = filepath.Join(home, ".local", "share")
-	}
-
-	appDir := filepath.Join(dataHome, "sanskrit-dictionary")
-	if err := os.MkdirAll(appDir, 0755); err != nil {
-		return "", err
-	}
-
-	return appDir, nil
-}
-
 // GetDatabasePath returns the path where the database should be stored.
+// Deprecated: Use paths.GetDatabasePath() directly. Kept for backward compatibility.
 func GetDatabasePath() (string, error) {
-	dataDir, err := GetDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "sanskrit.db"), nil
+	return paths.GetDatabasePath()
 }
 
 // DatabaseStatus represents the state of the local database.
@@ -173,6 +152,7 @@ func Download(progress ProgressFunc) error {
 		if n > 0 {
 			_, writeErr := out.Write(buf[:n])
 			if writeErr != nil {
+				out.Close()
 				os.Remove(tmpPath)
 				return fmt.Errorf("write file: %w", writeErr)
 			}
@@ -186,6 +166,7 @@ func Download(progress ProgressFunc) error {
 			break
 		}
 		if err != nil {
+			out.Close()
 			os.Remove(tmpPath)
 			return fmt.Errorf("read response: %w", err)
 		}

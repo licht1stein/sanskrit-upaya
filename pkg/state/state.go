@@ -4,9 +4,8 @@ package state
 
 import (
 	"database/sql"
-	"os"
-	"path/filepath"
 
+	"github.com/licht1stein/sanskrit-upaya/pkg/paths"
 	_ "modernc.org/sqlite"
 )
 
@@ -15,35 +14,12 @@ type Store struct {
 	db *sql.DB
 }
 
-// getDataDir returns the XDG data directory for the app.
-func getDataDir() (string, error) {
-	// Check XDG_DATA_HOME first
-	dataHome := os.Getenv("XDG_DATA_HOME")
-	if dataHome == "" {
-		// Default to ~/.local/share
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dataHome = filepath.Join(home, ".local", "share")
-	}
-
-	appDir := filepath.Join(dataHome, "sanskrit-dictionary")
-	if err := os.MkdirAll(appDir, 0755); err != nil {
-		return "", err
-	}
-
-	return appDir, nil
-}
-
 // Open opens or creates the state database.
 func Open() (*Store, error) {
-	dataDir, err := getDataDir()
+	dbPath, err := paths.GetStatePath()
 	if err != nil {
 		return nil, err
 	}
-
-	dbPath := filepath.Join(dataDir, "state.db")
 
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -152,12 +128,34 @@ func (s *Store) Delete(key string) error {
 }
 
 // AddHistory adds or updates a search query in history.
+// Maintains a maximum of 1000 entries, removing the oldest by last_used.
 func (s *Store) AddHistory(query string) error {
-	_, err := s.db.Exec(`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Insert or update the history entry
+	_, err = tx.Exec(`
 		INSERT INTO history (query, count, last_used) VALUES (?, 1, CURRENT_TIMESTAMP)
 		ON CONFLICT(query) DO UPDATE SET count = count + 1, last_used = CURRENT_TIMESTAMP
 	`, query)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Clean up entries beyond the 1000 most recent
+	_, err = tx.Exec(`
+		DELETE FROM history WHERE id NOT IN (
+			SELECT id FROM history ORDER BY last_used DESC LIMIT 1000
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // SearchHistory returns history entries matching the prefix, ordered by frequency and recency.

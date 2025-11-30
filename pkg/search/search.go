@@ -359,6 +359,21 @@ const (
 	ModeReverse
 )
 
+// buildDictFilter returns a SQL filter clause and appends dict codes to args.
+// column should be "w.dict_code" or "a.dict_code" depending on the query context.
+// Returns empty string if no dict codes provided.
+func buildDictFilter(column string, dictCodes []string, args *[]interface{}) string {
+	if len(dictCodes) == 0 {
+		return ""
+	}
+	placeholders := strings.Repeat("?,", len(dictCodes))
+	placeholders = placeholders[:len(placeholders)-1]
+	for _, dc := range dictCodes {
+		*args = append(*args, dc)
+	}
+	return fmt.Sprintf(" AND %s IN (%s)", column, placeholders)
+}
+
 // Search performs a search with the given mode and query.
 func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result, error) {
 	query = strings.TrimSpace(query)
@@ -378,14 +393,7 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 	case ModeExact:
 		// True exact match using SQL equality (case-insensitive)
 		lowerQuery := strings.ToLower(query)
-		if len(dictCodes) > 0 {
-			placeholders := strings.Repeat("?,", len(dictCodes))
-			placeholders = placeholders[:len(placeholders)-1]
-			dictFilter = fmt.Sprintf(" AND w.dict_code IN (%s)", placeholders)
-			for _, dc := range dictCodes {
-				args = append(args, dc)
-			}
-		}
+		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
 		args = append([]interface{}{lowerQuery, lowerQuery}, args...)
 
 		rows, err = d.db.Query(`
@@ -401,14 +409,7 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 	case ModePrefix:
 		// Prefix search using LIKE (more predictable than FTS5 prefix)
 		likeQuery := strings.ToLower(query) + "%"
-		if len(dictCodes) > 0 {
-			placeholders := strings.Repeat("?,", len(dictCodes))
-			placeholders = placeholders[:len(placeholders)-1]
-			dictFilter = fmt.Sprintf(" AND w.dict_code IN (%s)", placeholders)
-			for _, dc := range dictCodes {
-				args = append(args, dc)
-			}
-		}
+		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
 		args = append([]interface{}{likeQuery, likeQuery}, args...)
 
 		rows, err = d.db.Query(`
@@ -424,14 +425,7 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 	case ModeFuzzy:
 		// Fuzzy/contains: use LIKE for substring matching
 		likeQuery := "%" + strings.ToLower(query) + "%"
-		if len(dictCodes) > 0 {
-			placeholders := strings.Repeat("?,", len(dictCodes))
-			placeholders = placeholders[:len(placeholders)-1]
-			dictFilter = fmt.Sprintf(" AND w.dict_code IN (%s)", placeholders)
-			for _, dc := range dictCodes {
-				args = append(args, dc)
-			}
-		}
+		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
 		args = append([]interface{}{likeQuery, likeQuery}, args...)
 
 		rows, err = d.db.Query(`
@@ -447,14 +441,7 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 	case ModeReverse:
 		// Full-text search in article content
 		ftsQuery := escapeFTS(query)
-		if len(dictCodes) > 0 {
-			placeholders := strings.Repeat("?,", len(dictCodes))
-			placeholders = placeholders[:len(placeholders)-1]
-			dictFilter = fmt.Sprintf(" AND a.dict_code IN (%s)", placeholders)
-			for _, dc := range dictCodes {
-				args = append(args, dc)
-			}
-		}
+		dictFilter = buildDictFilter("a.dict_code", dictCodes, &args)
 		args = append([]interface{}{ftsQuery}, args...)
 
 		rows, err = d.db.Query(`
