@@ -11,8 +11,8 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # Version from git tag or "dev"
-        version = if (self ? rev) then "git-${builtins.substring 0 7 self.rev}" else "dev";
+        # Version from VERSION file
+        version = builtins.replaceStrings ["\n"] [""] (builtins.readFile ./VERSION);
       in
       {
         packages = {
