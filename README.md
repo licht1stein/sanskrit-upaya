@@ -36,33 +36,53 @@ A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fy
 
 ## Installation
 
-### Homebrew (macOS)
+### macOS
 
-If you don't have Homebrew installed, follow the instructions at [brew.sh](https://brew.sh/).
+[Homebrew](https://brew.sh/) is the standard package manager for macOS. Since macOS blocks unsigned apps, Homebrew is the easiest way to install Sanskrit Upaya.
 
 ```bash
 brew install licht1stein/tap/sanskrit-upaya
 ```
 
-### Manual Download
-
-Download the latest release for your platform from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
-
-On first run, the app will download the dictionary database (~670 MB).
-
-### macOS (manual install)
-
-macOS may block the app because it's not signed. To run it:
+To update:
 
 ```bash
-# Remove the quarantine attribute
-xattr -cr ~/Downloads/sanskrit-upaya-*-macos-*
-
-# Then double-click to open, or run from terminal
-./sanskrit-upaya-v1.0.0-macos-apple-silicon
+brew upgrade sanskrit-upaya
 ```
 
-Alternatively, right-click the app → Open → click "Open" in the dialog.
+### Linux
+
+Run directly without installing:
+
+```bash
+nix run github:licht1stein/sanskrit-upaya
+```
+
+Or install to your profile:
+
+```bash
+nix profile install github:licht1stein/sanskrit-upaya
+```
+
+To update:
+
+```bash
+nix profile upgrade sanskrit-upaya
+```
+
+Add to your flake inputs:
+
+```nix
+{
+  inputs.sanskrit-upaya.url = "github:licht1stein/sanskrit-upaya";
+}
+```
+
+### Windows
+
+Download the latest release from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
+
+On first run, the app will download the dictionary database (~670 MB).
 
 ## Building from Source
 
@@ -110,7 +130,8 @@ sanskrit-upaya/
 │   ├── state/            # User settings, history, starred
 │   └── transliterate/    # IAST ↔ Devanagari conversion
 ├── .github/workflows/    # GitHub Actions for releases
-└── shell.nix             # Nix development environment
+├── flake.nix             # Nix flake (package + dev shell)
+└── shell.nix             # Nix development environment (legacy)
 ```
 
 ## Data Source

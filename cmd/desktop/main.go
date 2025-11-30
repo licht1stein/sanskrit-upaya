@@ -25,6 +25,7 @@ import (
 	"github.com/licht1stein/sanskrit-upaya/pkg/search"
 	"github.com/licht1stein/sanskrit-upaya/pkg/state"
 	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
+	"github.com/licht1stein/sanskrit-upaya/pkg/version"
 )
 
 var testDownload = flag.Bool("test-download", false, "Simulate download flow for testing")
@@ -1259,12 +1260,31 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		toolbar,
 	)
 
-	// Version label (right side of status bar)
+	// Version display (right side of status bar)
 	versionLabel := widget.NewLabel(Version)
 	versionLabel.Importance = widget.LowImportance
 
+	// Update indicator (hidden by default)
+	updateLabel := widget.NewLabel("")
+	updateLabel.Hide()
+
+	// Version container: version label + update indicator
+	versionContainer := container.NewHBox(updateLabel, versionLabel)
+
+	// Check for updates in background
+	go func() {
+		result := version.Check(Version)
+		if result != nil && result.HasUpdate {
+			fyne.Do(func() {
+				updateLabel.SetText(fmt.Sprintf("Update available: %s", result.LatestVersion))
+				updateLabel.Show()
+				versionContainer.Refresh()
+			})
+		}
+	}()
+
 	// Status bar: status text on left, version on right
-	statusBar := container.NewBorder(nil, nil, nil, versionLabel, statusText)
+	statusBar := container.NewBorder(nil, nil, nil, versionContainer, statusText)
 
 	// Main layout with status bar at bottom
 	content := container.NewBorder(
