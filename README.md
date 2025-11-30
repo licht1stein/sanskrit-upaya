@@ -32,6 +32,20 @@ Download the latest release for your platform from the [Releases](https://github
 
 On first run, the app will download the dictionary database (~670 MB).
 
+### macOS
+
+macOS may block the app because it's not signed. To run it:
+
+```bash
+# Remove the quarantine attribute
+xattr -cr ~/Downloads/sanskrit-upaya-*-macos-*
+
+# Then double-click to open, or run from terminal
+./sanskrit-upaya-v1.0.0-macos-apple-silicon
+```
+
+Alternatively, right-click the app → Open → click "Open" in the dialog.
+
 ## Building from Source
 
 ### Prerequisites
