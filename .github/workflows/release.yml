@@ -88,13 +88,17 @@ jobs:
         run: |
           cp Icon.png FyneApp.toml cmd/desktop/
           fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION_NUM }} -src ./cmd/desktop
+          echo "=== Files created ==="
+          find . -name "*.app" -type d
+          ls -la cmd/desktop/
 
       - name: Create DMG
         run: |
           mkdir -p dmg_contents
-          mv "cmd/desktop/Sanskrit Upāya.app" dmg_contents/
+          mv cmd/desktop/*.app dmg_contents/
           ln -s /Applications dmg_contents/Applications
-          hdiutil create -volname "Sanskrit Upāya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg"
+          APP_NAME=$(ls dmg_contents | grep '.app$')
+          hdiutil create -volname "${APP_NAME%.app}" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,13 +132,17 @@ jobs:
         run: |
           cp Icon.png FyneApp.toml cmd/desktop/
           fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION_NUM }} -src ./cmd/desktop
+          echo "=== Files created ==="
+          find . -name "*.app" -type d
+          ls -la cmd/desktop/
 
       - name: Create DMG
         run: |
           mkdir -p dmg_contents
-          mv "cmd/desktop/Sanskrit Upāya.app" dmg_contents/
+          mv cmd/desktop/*.app dmg_contents/
           ln -s /Applications dmg_contents/Applications
-          hdiutil create -volname "Sanskrit Upāya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg"
+          APP_NAME=$(ls dmg_contents | grep '.app$')
+          hdiutil create -volname "${APP_NAME%.app}" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg"
 
       - uses: actions/upload-artifact@v4
         with:
