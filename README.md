@@ -1,4 +1,12 @@
+<p align="center">
+  <img src="Icon.png" width="128" height="128" alt="Sanskrit Upaya icon">
+</p>
+
 # Sanskrit Upaya
+
+[![GitHub release](https://img.shields.io/github/v/release/licht1stein/sanskrit-upaya)](https://github.com/licht1stein/sanskrit-upaya/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/licht1stein/sanskrit-upaya/release.yml)](https://github.com/licht1stein/sanskrit-upaya/actions/workflows/release.yml)
+[![Homebrew](https://img.shields.io/badge/homebrew-licht1stein%2Ftap-orange)](https://github.com/licht1stein/homebrew-tap)
 
 A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fyne, and SQLite FTS5.
 
@@ -28,11 +36,19 @@ A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fy
 
 ## Installation
 
+### Homebrew (macOS)
+
+```bash
+brew install licht1stein/tap/sanskrit-upaya
+```
+
+### Manual Download
+
 Download the latest release for your platform from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
 
 On first run, the app will download the dictionary database (~670 MB).
 
-### macOS
+### macOS (manual install)
 
 macOS may block the app because it's not signed. To run it:
 

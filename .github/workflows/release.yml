@@ -205,3 +205,17 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+  update-homebrew:
+    needs: [release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Update Homebrew formula
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: sanskrit-upaya
+          homebrew-tap: licht1stein/homebrew-tap
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
