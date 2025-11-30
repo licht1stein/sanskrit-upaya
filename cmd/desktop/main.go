@@ -42,7 +42,7 @@ func main() {
 		return
 	}
 
-	log.Println("Starting Sanskrit Dictionary...")
+	log.Printf("Starting Sanskrit Dictionary (version: %s)...", Version)
 
 	// Open state/settings store
 	settings, err := state.Open()

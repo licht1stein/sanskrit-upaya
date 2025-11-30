@@ -191,6 +191,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: master
+          fetch-depth: 0
 
       - uses: cachix/install-nix-action@v27
         with:
@@ -202,32 +203,34 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Check if go.sum changed
+        id: deps
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ] && git diff --quiet "$PREV_TAG"..HEAD -- go.sum; then
+            echo "Go dependencies unchanged"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Go dependencies changed (or first release)"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Update flake.lock
         run: nix flake update
 
-      - name: Compute new vendorHash if needed
+      - name: Compute vendorHash with nix-prefetch
+        if: steps.deps.outputs.changed == 'true'
         id: hash
         run: |
-          BUILD_OUTPUT=$(nix build 2>&1 || true)
-
-          if echo "$BUILD_OUTPUT" | grep -q "hash mismatch"; then
-            NEW_HASH=$(echo "$BUILD_OUTPUT" | grep "got:" | head -1 | sed 's/.*got:\s*//' | tr -d ' ')
-            echo "Hash mismatch detected, new hash: $NEW_HASH"
-            echo "HASH=$NEW_HASH" >> $GITHUB_OUTPUT
-            echo "update_hash=true" >> $GITHUB_OUTPUT
-          else
-            echo "No hash mismatch"
-            echo "update_hash=false" >> $GITHUB_OUTPUT
-          fi
+          NEW_HASH=$(nix shell nixpkgs#nix-prefetch -c nix-prefetch \
+            "{ sha256 }: ((builtins.getFlake \"path:$PWD\").packages.x86_64-linux.sanskrit-upaya.overrideAttrs { vendorHash = sha256; }).goModules")
+          echo "New vendorHash: $NEW_HASH"
+          echo "HASH=$NEW_HASH" >> $GITHUB_OUTPUT
 
       - name: Update vendorHash in flake.nix
-        if: steps.hash.outputs.update_hash == 'true'
+        if: steps.deps.outputs.changed == 'true'
         run: |
           sed -i "s|vendorHash = \"sha256-[^\"]*\"|vendorHash = \"${{ steps.hash.outputs.HASH }}\"|g" flake.nix
-
-      - name: Verify build works
-        if: steps.hash.outputs.update_hash == 'true'
-        run: nix build
 
       - name: Check for changes
         id: changes
