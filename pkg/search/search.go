@@ -278,12 +278,13 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 	switch mode {
 	case ModeExact:
 		// True exact match using SQL equality (case-insensitive)
+		// Note: Content is NOT fetched here for performance - fetch on-demand via GetArticleContent()
 		lowerQuery := strings.ToLower(query)
 		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
 		args = append([]interface{}{lowerQuery, lowerQuery}, args...)
 
 		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, w.word_iast, a.content
+			SELECT d.code, d.name, a.id, w.word_iast, ''
 			FROM words w
 			JOIN articles a ON a.id = w.article_id
 			JOIN dicts d ON d.code = w.dict_code
@@ -299,7 +300,7 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 		args = append([]interface{}{likeQuery, likeQuery}, args...)
 
 		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, w.word_iast, a.content
+			SELECT d.code, d.name, a.id, w.word_iast, ''
 			FROM words w
 			JOIN articles a ON a.id = w.article_id
 			JOIN dicts d ON d.code = w.dict_code
@@ -315,7 +316,7 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 		args = append([]interface{}{likeQuery, likeQuery}, args...)
 
 		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, w.word_iast, a.content
+			SELECT d.code, d.name, a.id, w.word_iast, ''
 			FROM words w
 			JOIN articles a ON a.id = w.article_id
 			JOIN dicts d ON d.code = w.dict_code
@@ -326,12 +327,17 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 
 	case ModeReverse:
 		// Full-text search in article content
+		// Note: Full content is NOT fetched - only first word for sidebar
 		ftsQuery := escapeFTS(query)
 		dictFilter = buildDictFilter("a.dict_code", dictCodes, &args)
 		args = append([]interface{}{ftsQuery}, args...)
 
 		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, '', a.content
+			SELECT d.code, d.name, a.id,
+				CASE WHEN INSTR(a.content, ' ') > 0
+					THEN SUBSTR(a.content, 1, INSTR(a.content, ' ') - 1)
+					ELSE SUBSTR(a.content, 1, 40)
+				END, ''
 			FROM articles_fts af
 			JOIN articles a ON a.id = af.rowid
 			JOIN dicts d ON d.code = a.dict_code
@@ -430,4 +436,47 @@ func (d *DB) GetArticle(articleID int64) ([]Result, error) {
 		results = append(results, r)
 	}
 	return results, rows.Err()
+}
+
+// GetArticleContent retrieves content for a single article by ID.
+func (d *DB) GetArticleContent(articleID int64) (string, error) {
+	var content string
+	err := d.db.QueryRow(`SELECT content FROM articles WHERE id = ?`, articleID).Scan(&content)
+	if err != nil {
+		return "", err
+	}
+	return content, nil
+}
+
+// GetArticleContents retrieves content for multiple articles by IDs (batch fetch).
+func (d *DB) GetArticleContents(articleIDs []int64) (map[int64]string, error) {
+	if len(articleIDs) == 0 {
+		return make(map[int64]string), nil
+	}
+
+	// Build query with placeholders
+	placeholders := make([]string, len(articleIDs))
+	args := make([]interface{}, len(articleIDs))
+	for i, id := range articleIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := `SELECT id, content FROM articles WHERE id IN (` + strings.Join(placeholders, ",") + `)`
+	rows, err := d.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[int64]string)
+	for rows.Next() {
+		var id int64
+		var content string
+		if err := rows.Scan(&id, &content); err != nil {
+			return nil, err
+		}
+		result[id] = content
+	}
+	return result, rows.Err()
 }

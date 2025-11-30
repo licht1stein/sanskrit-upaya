@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -218,6 +219,96 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	var cachedResults []search.Result // Cache raw results for re-grouping
 	var currentQuery string           // Track current search term for highlighting
 
+	// Lazy loading - only show first N results, load more on demand
+	const initialDisplayLimit = 100
+	const loadMoreIncrement = 100
+	displayLimit := initialDisplayLimit
+
+	// Limit articles rendered per dictionary to avoid UI freeze
+	const maxArticlesPerDict = 10
+
+	// Content cache for prefetched articles
+	contentCache := make(map[int64]string)
+	var contentCacheMu sync.RWMutex
+
+	// Check if content is cached
+	isContentCached := func(articleID int64) bool {
+		contentCacheMu.RLock()
+		_, ok := contentCache[articleID]
+		contentCacheMu.RUnlock()
+		return ok
+	}
+
+	// Helper to get content (from cache or fetch)
+	getContent := func(articleID int64) (string, error) {
+		contentCacheMu.RLock()
+		if content, ok := contentCache[articleID]; ok {
+			contentCacheMu.RUnlock()
+			return content, nil
+		}
+		contentCacheMu.RUnlock()
+
+		// Not in cache, fetch from DB
+		content, err := db.GetArticleContent(articleID)
+		if err != nil {
+			return "", err
+		}
+
+		// Store in cache
+		contentCacheMu.Lock()
+		contentCache[articleID] = content
+		contentCacheMu.Unlock()
+
+		return content, nil
+	}
+
+	// Prefetch content for visible results in background (batch fetch)
+	prefetchContent := func(results []GroupedResult, limit int) {
+		go func() {
+			// Collect article IDs to fetch
+			var ids []int64
+			for _, gr := range results {
+				if len(ids) >= limit {
+					break
+				}
+				for _, entry := range gr.Entries {
+					if len(ids) >= limit {
+						break
+					}
+					for _, article := range entry.Articles {
+						if len(ids) >= limit {
+							break
+						}
+						// Skip if already cached
+						contentCacheMu.RLock()
+						_, exists := contentCache[article.ArticleID]
+						contentCacheMu.RUnlock()
+						if !exists {
+							ids = append(ids, article.ArticleID)
+						}
+					}
+				}
+			}
+
+			if len(ids) == 0 {
+				return
+			}
+
+			// Batch fetch all at once
+			contents, err := db.GetArticleContents(ids)
+			if err != nil {
+				return
+			}
+
+			// Store in cache
+			contentCacheMu.Lock()
+			for id, content := range contents {
+				contentCache[id] = content
+			}
+			contentCacheMu.Unlock()
+		}()
+	}
+
 	// Load group setting from state (default false)
 	groupResultsSetting := false
 	if settings != nil {
@@ -275,9 +366,17 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	// Create debouncer for search-as-you-type (300ms delay)
 	searchDebouncer := newDebouncer(300 * time.Millisecond)
 
+	// Helper to get visible count (respects displayLimit)
+	visibleCount := func() int {
+		if len(groupedResults) <= displayLimit {
+			return len(groupedResults)
+		}
+		return displayLimit
+	}
+
 	// Word list (sidebar) - shows unique words with dict pills or count
 	wordList := widget.NewList(
-		func() int { return len(groupedResults) },
+		func() int { return visibleCount() },
 		func() fyne.CanvasObject {
 			wordLabel := widget.NewLabel("Word placeholder")
 			wordLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -349,6 +448,21 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 
 	// Status label - always visible at bottom of window
 	statusText := widget.NewLabel("Ready")
+	lastStatus := "Ready" // Track last status for restoring after "Loading..."
+
+	// Helper to update status text
+	setStatus := func(text string) {
+		statusText.SetText(text)
+		// Don't save transient statuses
+		if text != "Loading..." && text != "Grouping..." && text != "Ungrouping..." && text != "Searching..." {
+			lastStatus = text
+		}
+	}
+
+	// Restore last status (after loading)
+	restoreStatus := func() {
+		statusText.SetText(lastStatus)
+	}
 
 	// Sidebar header
 	sidebarHeader := widget.NewLabel("Results")
@@ -449,46 +563,117 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			contentHeaderRow.Refresh()
 
 			if len(gr.Entries) == 1 {
-				// Single dictionary - use scroll view (no tabs)
+				// Single dictionary - show first article only
 				entry := gr.Entries[0]
 				dictHeader := container.NewHBox(
 					newPillLabel(entry.DictCode),
 					widget.NewLabel(entry.DictName),
 				)
 				contentContainer.Add(dictHeader)
-				for _, article := range entry.Articles {
-					content := createArticleContent(article.Content, currentQuery)
-					contentContainer.Add(content)
-					contentContainer.Add(widget.NewSeparator())
+
+				// Fetch and display first article content (from cache or DB)
+				if len(entry.Articles) > 0 {
+					articleID := entry.Articles[0].ArticleID
+					// Show loading if not cached
+					if !isContentCached(articleID) {
+						setStatus("Loading...")
+					}
+					articleContent, err := getContent(articleID)
+					if err == nil {
+						content := createArticleContent(articleContent, currentQuery)
+						contentContainer.Add(content)
+					}
+					// Restore status
+					restoreStatus()
+					if len(entry.Articles) > 1 {
+						moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(entry.Articles)-1))
+						moreLabel.Importance = widget.LowImportance
+						contentContainer.Add(moreLabel)
+					}
 				}
 				contentContainer.Refresh()
 				contentHolder.Add(contentScroll)
 				contentScroll.ScrollToTop()
 			} else {
-				// Multiple dictionaries - use tabs (fills full height)
-				tabs := container.NewAppTabs()
-				for _, entry := range gr.Entries {
-					// Create content for this tab - same as ungrouped rendering
-					tabContent := container.NewVBox()
+				// Multiple dictionaries - show first dictionary's first article
+				entry := gr.Entries[0]
+				tabContent := container.NewVBox()
+				dictHeader := container.NewHBox(
+					newPillLabel(entry.DictCode),
+					widget.NewLabel(entry.DictName),
+				)
+				tabContent.Add(dictHeader)
 
-					// Dictionary header with pill + name
-					dictHeader := container.NewHBox(
-						newPillLabel(entry.DictCode),
-						widget.NewLabel(entry.DictName),
-					)
-					tabContent.Add(dictHeader)
-
-					// Add articles
-					for _, article := range entry.Articles {
-						content := createArticleContent(article.Content, currentQuery)
-						tabContent.Add(content)
-						tabContent.Add(widget.NewSeparator())
+				// Fetch first article content (from cache or DB)
+				if len(entry.Articles) > 0 {
+					articleID := entry.Articles[0].ArticleID
+					if !isContentCached(articleID) {
+						setStatus("Loading...")
 					}
-
-					// Wrap in scroll for long content (no MinSize - let it fill)
-					tabScroll := container.NewVScroll(tabContent)
-					tabs.Append(container.NewTabItem(entry.DictCode, tabScroll))
+					articleContent, err := getContent(articleID)
+					if err == nil {
+						content := createArticleContent(articleContent, currentQuery)
+						tabContent.Add(content)
+					}
+					restoreStatus()
+					if len(entry.Articles) > 1 {
+						moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(entry.Articles)-1))
+						moreLabel.Importance = widget.LowImportance
+						tabContent.Add(moreLabel)
+					}
 				}
+
+				// Create tabs - only first tab has content, others load on select
+				tabs := container.NewAppTabs()
+				tabScroll := container.NewVScroll(tabContent)
+				tabs.Append(container.NewTabItem(entry.DictCode, tabScroll))
+
+				// Add placeholder tabs for other dictionaries
+				for i := 1; i < len(gr.Entries); i++ {
+					e := gr.Entries[i]
+					placeholder := container.NewVBox(widget.NewLabel("Loading..."))
+					tabs.Append(container.NewTabItem(e.DictCode, placeholder))
+				}
+
+				// Lazy-load tab content on selection
+				tabs.OnSelected = func(tab *container.TabItem) {
+					// Find which entry this tab corresponds to
+					for i, e := range gr.Entries {
+						if e.DictCode == tab.Text && i > 0 {
+							// Load content for this tab if not already loaded
+							vbox, ok := tab.Content.(*fyne.Container)
+							if ok && len(vbox.Objects) == 1 {
+								// Still has placeholder, load real content
+								vbox.RemoveAll()
+								dictHeader := container.NewHBox(
+									newPillLabel(e.DictCode),
+									widget.NewLabel(e.DictName),
+								)
+								vbox.Add(dictHeader)
+								if len(e.Articles) > 0 {
+									articleID := e.Articles[0].ArticleID
+									if !isContentCached(articleID) {
+										setStatus("Loading...")
+									}
+									articleContent, err := getContent(articleID)
+									if err == nil {
+										content := createArticleContent(articleContent, currentQuery)
+										vbox.Add(content)
+									}
+									restoreStatus()
+									if len(e.Articles) > 1 {
+										moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(e.Articles)-1))
+										moreLabel.Importance = widget.LowImportance
+										vbox.Add(moreLabel)
+									}
+								}
+								vbox.Refresh()
+							}
+							break
+						}
+					}
+				}
+
 				tabs.SetTabLocation(container.TabLocationTop)
 				contentHolder.Add(tabs)
 			}
@@ -511,6 +696,12 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 
 	// Handle word selection
 	wordList.OnSelected = func(id widget.ListItemID) {
+		// Auto-load more when near the end (within 10 items)
+		if int(id) >= displayLimit-10 && displayLimit < len(groupedResults) {
+			displayLimit += loadMoreIncrement
+			wordList.Refresh()
+		}
+
 		if int(id) != currentSelection {
 			navigateTo(int(id))
 		}
@@ -592,26 +783,46 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		return grouped
 	}
 
-	// Helper to update status text
-	setStatus := func(text string) {
-		statusText.SetText(text)
-	}
-
 	// Re-group cached results (used when toggling group setting)
-	// Note: Does NOT update status text - the underlying data hasn't changed
+	// Runs in background goroutine to keep UI responsive
 	regroupResults := func() {
 		if len(cachedResults) == 0 {
 			return
 		}
 
-		groupedResults = makeGroupedResults(cachedResults)
-		wordList.Refresh()
+		// Capture current results for goroutine
+		results := cachedResults
 
-		if len(groupedResults) > 0 {
-			navigateTo(0)
+		// Show status immediately
+		if groupResultsSetting {
+			setStatus("Grouping...")
 		} else {
-			clearContent()
+			setStatus("Ungrouping...")
 		}
+
+		go func() {
+			grouped := makeGroupedResults(results)
+
+			// Update data and refresh list
+			fyne.Do(func() {
+				groupedResults = grouped
+				displayLimit = initialDisplayLimit // Reset lazy loading
+				wordList.Refresh()
+			})
+
+			// Small delay to let list refresh complete, then navigate
+			time.Sleep(10 * time.Millisecond)
+
+			fyne.Do(func() {
+				if len(groupedResults) > 0 {
+					navigateTo(0)
+				} else {
+					clearContent()
+				}
+				// Restore status with result count
+				restoreStatus()
+			})
+		}()
 	}
 
 	// Search function - runs database query in background
@@ -626,6 +837,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		if query == "" {
 			currentQuery = ""
 			groupedResults = nil
+			displayLimit = initialDisplayLimit // Reset lazy loading
 			setStatus("Ready")
 			wordList.Refresh()
 			clearContent()
@@ -640,6 +852,11 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 
 		// Store query for highlighting
 		currentQuery = query
+
+		// Clear content cache for new search
+		contentCacheMu.Lock()
+		contentCache = make(map[int64]string)
+		contentCacheMu.Unlock()
 
 		// Show searching indicator
 		setStatus("Searching...")
@@ -703,26 +920,41 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			// Calculate search duration in seconds
 			duration := time.Since(startTime).Seconds()
 
-			// Update UI on main thread
+			// Update data first
 			fyne.Do(func() {
 				cachedResults = dedupedResults // Cache for re-grouping
 				groupedResults = grouped
+				displayLimit = initialDisplayLimit // Reset lazy loading for new search
 
 				// Update status with raw count (not grouped), time in seconds, and dictionary count
 				if len(dedupedResults) == 0 {
 					setStatus(fmt.Sprintf("No results found (%.2fs)", duration))
 					showEmpty("No results found")
 				} else {
-					setStatus(fmt.Sprintf("%d entries in %.2fs across %d dictionaries", len(dedupedResults), duration, dictCount))
+					setStatus(fmt.Sprintf("%d entries in %.2fs across %d dicts", len(dedupedResults), duration, dictCount))
 					// Save to history (only if results found)
 					if settings != nil {
 						settings.AddHistory(query)
 					}
 				}
 
-				wordList.Refresh()
+				// Prefetch content for first 50 visible results in background
+				prefetchContent(grouped, 50)
+			})
 
-				// Select first result automatically
+			// Yield to let status update render
+			time.Sleep(5 * time.Millisecond)
+
+			// Refresh list
+			fyne.Do(func() {
+				wordList.Refresh()
+			})
+
+			// Yield again
+			time.Sleep(5 * time.Millisecond)
+
+			// Navigate to first result
+			fyne.Do(func() {
 				if len(groupedResults) > 0 {
 					navigateTo(0)
 				} else {
