@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
   workflow_dispatch:  # Allow manual trigger for testing
@@ -15,13 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
+      - uses: cachix/install-nix-action@v27
 
       - name: Run tests
-        run: go test ./...
+        run: nix-shell --run "go test ./..."
 
   build-linux:
     needs: [test]
