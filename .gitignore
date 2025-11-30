@@ -1,0 +1,27 @@
+# Binaries
+sanskrit-mitra
+sanskrit
+indexer
+*.exe
+
+# Database files (generated, large)
+sanskrit.db
+sanskrit.db-shm
+sanskrit.db-wal
+
+# Nix/direnv
+.direnv/
+result
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Fyne build artifacts
+fyne-cross/
+
+# OS files
+.DS_Store
+Thumbs.db
