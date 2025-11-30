@@ -86,13 +86,13 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: 1
         run: |
-          cp Icon.png cmd/desktop/
+          cp Icon.png FyneApp.toml cmd/desktop/
           fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION_NUM }} -src ./cmd/desktop
 
       - name: Create DMG
         run: |
           mkdir -p dmg_contents
-          mv "Sanskrit Upāya.app" dmg_contents/
+          mv "cmd/desktop/Sanskrit Upāya.app" dmg_contents/
           ln -s /Applications dmg_contents/Applications
           hdiutil create -volname "Sanskrit Upāya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-intel.dmg"
 
@@ -126,13 +126,13 @@ jobs:
           GOARCH: arm64
           CGO_ENABLED: 1
         run: |
-          cp Icon.png cmd/desktop/
+          cp Icon.png FyneApp.toml cmd/desktop/
           fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION_NUM }} -src ./cmd/desktop
 
       - name: Create DMG
         run: |
           mkdir -p dmg_contents
-          mv "Sanskrit Upāya.app" dmg_contents/
+          mv "cmd/desktop/Sanskrit Upāya.app" dmg_contents/
           ln -s /Applications dmg_contents/Applications
           hdiutil create -volname "Sanskrit Upāya" -srcfolder dmg_contents -ov -format UDZO "sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos-apple-silicon.dmg"
 
