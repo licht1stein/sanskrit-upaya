@@ -84,7 +84,7 @@ jobs:
           CGO_ENABLED: 1
         run: |
           cp Icon.png cmd/desktop/
-          fyne package -os darwin -release -appVersion ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
+          fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
 
       - name: Create DMG
         run: |
@@ -121,7 +121,7 @@ jobs:
           CGO_ENABLED: 1
         run: |
           cp Icon.png cmd/desktop/
-          fyne package -os darwin -release -appVersion ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
+          fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
 
       - name: Create DMG
         run: |
