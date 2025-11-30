@@ -1,7 +1,8 @@
 # Binaries
 sanskrit-mitra
+sanskrit-upaya
 sanskrit
-indexer
+/indexer
 *.exe
 
 # Database files (generated, large)

@@ -1,15 +1,15 @@
-# Sanskrit Mitra - Go + Fyne + SQLite FTS5
+# Sanskrit Upaya - Go + Fyne + SQLite FTS5
 
 ## Project Overview
 
-Sanskrit Mitra ("Sanskrit Friend") is a cross-platform Sanskrit dictionary desktop application built in Go. It provides fast full-text search across 36 digitized Sanskrit dictionaries from the Cologne Digital Sanskrit Dictionaries project.
+Sanskrit Upaya ("Sanskrit Method/Tool") is a cross-platform Sanskrit dictionary desktop application built in Go. It provides fast full-text search across 36 digitized Sanskrit dictionaries from the Cologne Digital Sanskrit Dictionaries project.
 
-**Repository**: `github.com/licht1stein/sanskrit-mitra`
+**Repository**: `github.com/licht1stein/sanskrit-upaya`
 
 ## Architecture
 
 ```
-sanskrit-mitra/
+sanskrit-upaya/
 ├── cmd/
 │   ├── desktop/          # Fyne UI application
 │   │   ├── main.go       # Main app with UI, search, state management
@@ -76,7 +76,7 @@ go run ./cmd/indexer -input /path/to/csl-json/ashtadhyayi.com/ -output sanskrit.
 go run ./cmd/desktop
 
 # Build release binary
-go build -o sanskrit-mitra ./cmd/desktop
+go build -o sanskrit-upaya ./cmd/desktop
 ```
 
 ## NixOS / Nix Users
@@ -118,10 +118,12 @@ You can manually trigger the workflow from GitHub Actions UI (workflow_dispatch)
 
 ### Build Artifacts
 
-- `sanskrit-mitra-linux-amd64` - Linux x86_64
-- `sanskrit-mitra-windows-amd64.exe` - Windows x86_64
-- `sanskrit-mitra-macos-intel` - macOS Intel (x86_64)
-- `sanskrit-mitra-macos-apple-silicon` - macOS Apple Silicon (arm64)
+Binary names include the version tag (e.g., for v1.0.0):
+
+- `sanskrit-upaya-v1.0.0-linux-amd64` - Linux x86_64
+- `sanskrit-upaya-v1.0.0-windows-amd64.exe` - Windows x86_64
+- `sanskrit-upaya-v1.0.0-macos-intel` - macOS Intel (x86_64)
+- `sanskrit-upaya-v1.0.0-macos-apple-silicon` - macOS Apple Silicon (arm64)
 
 ### Updating Database Checksum
 

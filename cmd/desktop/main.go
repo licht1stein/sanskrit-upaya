@@ -23,10 +23,10 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/licht1stein/sanskrit-mitra/pkg/download"
-	"github.com/licht1stein/sanskrit-mitra/pkg/search"
-	"github.com/licht1stein/sanskrit-mitra/pkg/state"
-	"github.com/licht1stein/sanskrit-mitra/pkg/transliterate"
+	"github.com/licht1stein/sanskrit-upaya/pkg/download"
+	"github.com/licht1stein/sanskrit-upaya/pkg/search"
+	"github.com/licht1stein/sanskrit-upaya/pkg/state"
+	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
 )
 
 var testDownload = flag.Bool("test-download", false, "Simulate download flow for testing")
@@ -303,7 +303,7 @@ func main() {
 	}
 	applyZoom(zoomPercent)
 
-	w := a.NewWindow("Sanskrit Mitra")
+	w := a.NewWindow("Sanskrit Upaya")
 	w.Resize(fyne.NewSize(1100, 700))
 
 	// If database doesn't exist or needs update, download it first
@@ -317,7 +317,7 @@ func main() {
 			titleLabel = widget.NewLabel("Dictionary database needs to be re-downloaded (~670 MB).")
 			subtitleLabel = widget.NewLabel("This may be due to an app update or corrupted data.")
 		} else {
-			titleLabel = widget.NewLabel("Sanskrit Mitra needs to download the dictionary database (~670 MB).")
+			titleLabel = widget.NewLabel("Sanskrit Upaya needs to download the dictionary database (~670 MB).")
 			subtitleLabel = widget.NewLabel("This only happens once.")
 		}
 
@@ -1419,7 +1419,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	// Settings/About button (cog icon)
 	settingsBtn := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		// About dialog
-		aboutTitle := widget.NewLabel("Sanskrit Studio")
+		aboutTitle := widget.NewLabel("Sanskrit Upaya")
 		aboutTitle.TextStyle = fyne.TextStyle{Bold: true}
 		aboutTitle.Alignment = fyne.TextAlignCenter
 

@@ -1,4 +1,4 @@
-module github.com/licht1stein/sanskrit-mitra
+module github.com/licht1stein/sanskrit-upaya
 
 go 1.24.0
 
