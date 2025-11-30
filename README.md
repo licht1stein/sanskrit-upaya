@@ -12,6 +12,8 @@ A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fy
 
 **Upaya** (उपाय) means "method", "means", or "tool" in Sanskrit.
 
+![Screenshot](screenshot.png)
+
 ## Features
 
 - **Fast search**: SQLite FTS5 provides sub-millisecond exact/prefix searches
