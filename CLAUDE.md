@@ -86,16 +86,51 @@ nix-shell   # Enter dev environment with all dependencies
 go run ./cmd/desktop
 ```
 
-## Cross-Platform Builds (GitHub Actions)
+## Releasing
 
-Releases are built automatically via GitHub Actions on tag push. Tags follow BreakVer: `v<major>.<minor>.<non-breaking>`
+Releases are built automatically via GitHub Actions on tag push.
 
-To release:
+### Versioning (BreakVer)
+
+Uses [BreakVer](https://www.taoensso.com/break-versioning): `v<major>.<minor>.<non-breaking>`
+
+- **Major**: Breaking changes (rare, signals major overhaul)
+- **Minor**: May contain breaking changes (read changelog)
+- **Non-breaking**: Bug fixes, safe updates (always safe to upgrade)
+
+### Creating a Release
 
 ```bash
+# Create and push a tag
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+GitHub Actions will automatically:
+
+1. Build binaries for Linux (amd64), Windows (amd64), macOS (Intel), macOS (Apple Silicon)
+2. Create a GitHub Release with all artifacts
+3. Generate release notes from commits
+
+### Manual Build Testing
+
+You can manually trigger the workflow from GitHub Actions UI (workflow_dispatch) to test builds without creating a release.
+
+### Build Artifacts
+
+- `sanskrit-mitra-linux-amd64` - Linux x86_64
+- `sanskrit-mitra-windows-amd64.exe` - Windows x86_64
+- `sanskrit-mitra-macos-intel` - macOS Intel (x86_64)
+- `sanskrit-mitra-macos-apple-silicon` - macOS Apple Silicon (arm64)
+
+### Updating Database Checksum
+
+When updating the dictionary database on the server:
+
+1. Upload new database to server
+2. Get SHA256 checksum: `sha256sum /path/to/sanskrit.db`
+3. Update `ExpectedChecksum` in `pkg/download/download.go`
+4. Create new release - users will auto-download on next app start
 
 ## Database Schema
 
@@ -146,7 +181,8 @@ starred(id, article_id, word, dict_code, created_at)  -- Starred articles
 
 ## TODO / Future Work
 
-- [ ] GitHub Actions workflow for cross-platform releases
+- [x] GitHub Actions workflow for cross-platform releases
+- [x] Database checksum verification and auto-redownload
 - [ ] Theme switching (light/dark/system)
 - [ ] Devanagari virtual keyboard
 - [ ] Mobile builds with bundled database
