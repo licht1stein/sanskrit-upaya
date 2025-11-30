@@ -4,77 +4,106 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:  # Allow manual trigger for testing
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            artifact: sanskrit-mitra-linux-amd64
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            artifact: sanskrit-mitra-macos-amd64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-            artifact: sanskrit-mitra-macos-arm64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            artifact: sanskrit-mitra-windows-amd64.exe
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.21'
 
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-dev xorg-dev
 
-      - name: Get version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-        shell: bash
+      - name: Build
+        run: |
+          go build -ldflags="-s -w" -o sanskrit-mitra-linux-amd64 ./cmd/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sanskrit-mitra-linux-amd64
+          path: sanskrit-mitra-linux-amd64
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build
+        run: |
+          go build -ldflags="-s -w -H windowsgui" -o sanskrit-mitra-windows-amd64.exe ./cmd/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sanskrit-mitra-windows-amd64.exe
+          path: sanskrit-mitra-windows-amd64.exe
+
+  build-macos-intel:
+    runs-on: macos-13  # Intel runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
 
       - name: Build
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
+          GOARCH: amd64
         run: |
-          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o ${{ matrix.artifact }} ./cmd/desktop
+          go build -ldflags="-s -w" -o sanskrit-mitra-macos-intel ./cmd/desktop
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          name: sanskrit-mitra-macos-intel
+          path: sanskrit-mitra-macos-intel
+
+  build-macos-arm:
+    runs-on: macos-latest  # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build
+        env:
+          GOARCH: arm64
+        run: |
+          go build -ldflags="-s -w" -o sanskrit-mitra-macos-apple-silicon ./cmd/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sanskrit-mitra-macos-apple-silicon
+          path: sanskrit-mitra-macos-apple-silicon
 
   release:
-    needs: build
+    needs: [build-linux, build-windows, build-macos-intel, build-macos-arm]
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
