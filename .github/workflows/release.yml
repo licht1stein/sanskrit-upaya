@@ -73,7 +73,10 @@ jobs:
 
       - name: Get version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_NUM=${VERSION#v}" >> $GITHUB_OUTPUT
 
       - name: Install Fyne CLI
         run: go install fyne.io/tools/cmd/fyne@latest
@@ -84,7 +87,7 @@ jobs:
           CGO_ENABLED: 1
         run: |
           cp Icon.png cmd/desktop/
-          fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
+          fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION_NUM }} -src ./cmd/desktop
 
       - name: Create DMG
         run: |
@@ -110,7 +113,10 @@ jobs:
 
       - name: Get version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_NUM=${VERSION#v}" >> $GITHUB_OUTPUT
 
       - name: Install Fyne CLI
         run: go install fyne.io/tools/cmd/fyne@latest
@@ -121,7 +127,7 @@ jobs:
           CGO_ENABLED: 1
         run: |
           cp Icon.png cmd/desktop/
-          fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION }} -src ./cmd/desktop
+          fyne package -os darwin -release --app-version ${{ steps.version.outputs.VERSION_NUM }} -src ./cmd/desktop
 
       - name: Create DMG
         run: |
