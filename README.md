@@ -2,7 +2,7 @@
   <img src="Icon.png" width="128" height="128" alt="Sanskrit Upaya icon">
 </p>
 
-# Sanskrit Upaya
+# Sanskrit Upāya
 
 [![GitHub release](https://img.shields.io/github/v/release/licht1stein/sanskrit-upaya)](https://github.com/licht1stein/sanskrit-upaya/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/licht1stein/sanskrit-upaya/release.yml)](https://github.com/licht1stein/sanskrit-upaya/actions/workflows/release.yml)
