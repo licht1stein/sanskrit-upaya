@@ -1,14 +1,17 @@
 <!-- OPENSPEC:START -->
+
 # OpenSpec Instructions
 
 These instructions are for AI assistants working in this project.
 
 Always open `@/openspec/AGENTS.md` when the request:
+
 - Mentions planning or proposals (words like proposal, spec, change, plan)
 - Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
 - Sounds ambiguous and you need the authoritative spec before coding
 
 Use `@/openspec/AGENTS.md` to learn:
+
 - How to create and apply change proposals
 - Spec format and conventions
 - Project structure and guidelines
@@ -33,8 +36,10 @@ sanskrit-upaya/
 │   ├── desktop/          # Fyne UI application
 │   │   ├── main.go       # Main app with UI, search, state management
 │   │   └── bundled.go    # SVG icons (star, star-filled)
-│   └── indexer/main.go   # One-time tool to build SQLite DB from JSON
+│   ├── indexer/main.go   # One-time tool to build SQLite DB from JSON
+│   └── mcp/main.go       # MCP server for LLM integration
 ├── pkg/
+│   ├── dictdata/         # Embedded dictionary metadata JSON
 │   ├── download/         # First-run database download from server
 │   ├── search/search.go  # SQLite FTS5 search engine + dict filtering
 │   ├── state/state.go    # User settings, history, starred articles (SQLite)
@@ -72,6 +77,7 @@ The dictionary database (~670MB) is NOT bundled with the binary. On first run:
 - **Zoom Control**: 50%-200% UI scaling with Ctrl/Cmd +/-
 - **Keyboard Navigation**: Arrow keys to navigate results, Ctrl/Cmd+K to focus search
 - **Transliteration**: Auto-converts between IAST and Devanagari for search
+- **MCP Server**: LLM integration via Model Context Protocol for Claude Code and other MCP clients
 
 ## Key Design Decisions
 
@@ -96,7 +102,48 @@ go run ./cmd/desktop
 
 # Build release binary
 go build -o sanskrit-upaya ./cmd/desktop
+
+# Build MCP server
+go build -o sanskrit-mcp ./cmd/mcp
 ```
+
+## MCP Server
+
+The MCP (Model Context Protocol) server enables LLMs like Claude to search Sanskrit dictionaries directly. It runs as a stdio-based server communicating via JSON-RPC 2.0.
+
+### Claude Code Configuration
+
+Add to your Claude Code MCP settings (`~/.config/claude/claude_desktop_config.json` or similar):
+
+```json
+{
+  "mcpServers": {
+    "sanskrit": {
+      "command": "/path/to/sanskrit-mcp"
+    }
+  }
+}
+```
+
+### Available Tools
+
+| Tool                         | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
+| `sanskrit_search`            | Search dictionaries with 4 modes: exact, prefix, fuzzy, reverse |
+| `sanskrit_list_dictionaries` | List all 36 dictionaries with descriptions                      |
+| `sanskrit_get_article`       | Retrieve full article content by ID                             |
+| `sanskrit_transliterate`     | Convert between IAST and Devanagari                             |
+
+### Example Usage (from Claude)
+
+- "Search for 'yoga' in Monier-Williams dictionary"
+- "What does 'dharma' mean? Search in exact mode"
+- "Transliterate 'namaste' to Devanagari"
+- "List available Sanskrit dictionaries"
+
+### Prerequisites
+
+The MCP server requires the dictionary database at `~/.local/share/sanskrit-dictionary/sanskrit.db`. Run the desktop app first to download it, or place the database manually.
 
 ## NixOS / Nix Users
 
@@ -200,6 +247,13 @@ starred(id, article_id, word, dict_code, created_at)  -- Starred articles
 - `ToSearchTerms()` - Returns both IAST and Devanagari variants for search
 - `IsDevanagari()` - Detects script type
 
+### cmd/mcp/main.go
+
+- MCP server using `github.com/modelcontextprotocol/go-sdk/mcp`
+- 4 tools: `sanskrit_search`, `sanskrit_list_dictionaries`, `sanskrit_get_article`, `sanskrit_transliterate`
+- Lazy database initialization (checks on first tool call)
+- Embedded dictionary descriptions from `pkg/dictdata/dictionaries.json`
+
 ## TODO / Future Work
 
 - [x] GitHub Actions workflow for cross-platform releases
@@ -231,10 +285,12 @@ Dictionary data from [Cologne Digital Sanskrit Dictionaries](https://www.sanskri
 
 - `fyne.io/fyne/v2` - Cross-platform UI framework
 - `modernc.org/sqlite` - Pure Go SQLite
+- `github.com/modelcontextprotocol/go-sdk/mcp` - MCP server SDK (for cmd/mcp)
 
 ## Common Issues
 
 1. **"Database not loaded"** - Run indexer first to create `sanskrit.db`
 2. **Devanagari not rendering** - Install Noto Sans Devanagari font
 3. **Slow first search** - Normal, database is memory-mapped on first access
+
 - Always build ./sanskrit locally

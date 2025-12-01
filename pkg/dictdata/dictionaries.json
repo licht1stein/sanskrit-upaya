@@ -1,0 +1,110 @@
+{
+  "mw": {
+    "description": "Monier-Williams Sanskrit-English Dictionary (1899). The standard academic reference for Sanskrit-English, comprehensive coverage of classical Sanskrit vocabulary."
+  },
+  "ap90": {
+    "description": "Apte Practical Sanskrit-English Dictionary (1890). Popular reference with clear definitions, widely used in Sanskrit education."
+  },
+  "ben": {
+    "description": "Benfey Sanskrit-English Dictionary (1866). Scholarly work with etymological information and Vedic references."
+  },
+  "wil": {
+    "description": "Wilson Sanskrit-English Dictionary (1832). Early comprehensive dictionary, useful for historical context."
+  },
+  "pwg": {
+    "description": "Böhtlingk and Roth Grosses Petersburger Wörterbuch (1855). Monumental 7-volume Sanskrit-German dictionary with extensive citations."
+  },
+  "shs": {
+    "description": "Shabda-Sagara Sanskrit-English Dictionary (1900). Based on traditional Indian lexicography with grammatical information."
+  },
+  "md": {
+    "description": "Macdonell Sanskrit-English Dictionary (1893). Concise student dictionary with clear, accessible definitions."
+  },
+  "cae": {
+    "description": "Cappeller Sanskrit-English Dictionary (1891). Compact reference useful for quick lookups."
+  },
+  "yat": {
+    "description": "Yates Sanskrit-English Dictionary (1846). Early dictionary with alternative interpretations."
+  },
+  "gst": {
+    "description": "Goldstücker Sanskrit-English Dictionary (1856). Detailed scholarly work, incomplete but valuable."
+  },
+  "stc": {
+    "description": "Stchoupak Dictionnaire Sanscrit-Français (1932). Standard French-language Sanskrit dictionary."
+  },
+  "pe": {
+    "description": "Puranic Encyclopedia (1975). Reference for names, places, and concepts from the Puranas."
+  },
+  "bur": {
+    "description": "Burnouf Dictionnaire Sanscrit-Français (1866). Early French Sanskrit dictionary with scholarly notes."
+  },
+  "krm": {
+    "description": "Kṛdantarūpamālā (1965). Sanskrit-Sanskrit reference for verbal derivatives and formations."
+  },
+  "sch": {
+    "description": "Schmidt Nachträge zum Sanskrit-Wörterbuch (1928). Supplement to Petersburg dictionary with additional entries."
+  },
+  "acc": {
+    "description": "Aufrecht's Catalogus Catalogorum (1962). Comprehensive catalog of Sanskrit manuscripts and authors."
+  },
+  "mwe": {
+    "description": "Monier-Williams English-Sanskrit Dictionary (1851). For finding Sanskrit equivalents of English words."
+  },
+  "bop": {
+    "description": "Bopp Glossarium Sanscritum (1847). Sanskrit-Latin glossary by the founder of comparative linguistics."
+  },
+  "skd": {
+    "description": "Sabda-kalpadruma (1886). Traditional Sanskrit encyclopedic dictionary in Sanskrit."
+  },
+  "ieg": {
+    "description": "Indian Epigraphical Glossary (1966). Technical terms from inscriptions and epigraphy."
+  },
+  "pw": {
+    "description": "Böhtlingk Sanskrit-Wörterbuch in kürzerer Fassung (1879). Shorter Petersburg dictionary, more accessible."
+  },
+  "pui": {
+    "description": "The Purana Index (1951). Index of topics, names, and places across Puranic literature."
+  },
+  "lan": {
+    "description": "Lanman's Sanskrit Reader Vocabulary (1884). Vocabulary companion to the classic Sanskrit Reader."
+  },
+  "gra": {
+    "description": "Grassmann Wörterbuch zum Rig Veda. Specialized dictionary for Rigvedic vocabulary and usage."
+  },
+  "inm": {
+    "description": "Index to the Names in the Mahabharata (1904). Reference for characters and places in the epic."
+  },
+  "bor": {
+    "description": "Borooah English-Sanskrit Dictionary (1877). English to Sanskrit reference work."
+  },
+  "armh": {
+    "description": "Abhidhānaratnamālā of Halāyudha (1861). Traditional Sanskrit synonym dictionary (kośa)."
+  },
+  "snp": {
+    "description": "Meulenbeld's Sanskrit Names of Plants (1974). Botanical reference with Sanskrit plant names."
+  },
+  "vcp": {
+    "description": "Vacaspatyam. Comprehensive Sanskrit-Sanskrit encyclopedic dictionary."
+  },
+  "ae": {
+    "description": "Apte Student's English-Sanskrit Dictionary (1920). Student-oriented English to Sanskrit reference."
+  },
+  "bhs": {
+    "description": "Edgerton Buddhist Hybrid Sanskrit Dictionary (1953). Specialized for Buddhist texts and terminology."
+  },
+  "pgn": {
+    "description": "Personal and Geographical Names in the Gupta Inscriptions (1978). Reference for Gupta-era names."
+  },
+  "mw72": {
+    "description": "Monier-Williams Sanskrit-English Dictionary (1872). Earlier edition with some unique entries."
+  },
+  "vei": {
+    "description": "The Vedic Index of Names and Subjects (1912). Reference for Vedic terminology and concepts."
+  },
+  "ccs": {
+    "description": "Cappeller Sanskrit Wörterbuch (1887). German-language Sanskrit dictionary by Cappeller."
+  },
+  "mci": {
+    "description": "Mahabharata Cultural Index (1993). Cultural and historical reference for the Mahabharata."
+  }
+}
