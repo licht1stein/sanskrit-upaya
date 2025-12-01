@@ -39,6 +39,7 @@ A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fy
 ## Installation
 
 ### macOS (Homebrew)
+The best way to install the app is using [Homebrew](https://brew.sh). You'll need to install it first if you don't have it yet.
 
 ```bash
 brew install --cask licht1stein/tap/sanskrit-upaya
