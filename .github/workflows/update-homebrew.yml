@@ -1,0 +1,55 @@
+name: Update Homebrew Cask
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.1.0)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update-homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: licht1stein/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version || github.event.release.tag_name }}"
+          VERSION_NUM="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_NUM=$VERSION_NUM" >> $GITHUB_OUTPUT
+
+      - name: Wait for release assets
+        if: github.event_name == 'release'
+        run: sleep 30
+
+      - name: Get hash of DMG
+        id: hash
+        run: |
+          URL="https://github.com/licht1stein/sanskrit-upaya/releases/download/${{ steps.version.outputs.VERSION }}/sanskrit-upaya-${{ steps.version.outputs.VERSION }}-macos.dmg"
+          HASH=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Update cask
+        run: |
+          sed -i 's/version "[^"]*"/version "${{ steps.version.outputs.VERSION_NUM }}"/' Casks/sanskrit-upaya.rb
+          sed -i 's/sha256 "[^"]*"/sha256 "${{ steps.hash.outputs.HASH }}"/' Casks/sanskrit-upaya.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/sanskrit-upaya.rb
+          git diff --staged --quiet || git commit -m "Update sanskrit-upaya to ${{ steps.version.outputs.VERSION }}"
+          git push
