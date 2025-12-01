@@ -1,7 +1,10 @@
 # Binaries
 sanskrit-mitra
 sanskrit-upaya
+sanskrit-upaya-mcp
+sanskrit-mcp
 sanskrit
+mcp
 /indexer
 *.exe
 

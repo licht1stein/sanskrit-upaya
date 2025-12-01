@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,9 @@ import (
 	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// Version is set at build time via -ldflags
+var Version = "dev"
 
 // dictDescriptions maps dictionary codes to their descriptions.
 var dictDescriptions map[string]struct {
@@ -284,10 +288,18 @@ func handleTransliterate(ctx context.Context, req *mcp.CallToolRequest, args Tra
 }
 
 func main() {
+	versionFlag := flag.Bool("version", false, "Print version and exit")
+	flag.Parse()
+
+	if *versionFlag {
+		fmt.Println("sanskrit-upaya-mcp", Version)
+		os.Exit(0)
+	}
+
 	server := mcp.NewServer(
 		&mcp.Implementation{
-			Name:    "sanskrit-upaya",
-			Version: "1.0.0",
+			Name:    "sanskrit-upaya-mcp",
+			Version: Version,
 		},
 		nil,
 	)
