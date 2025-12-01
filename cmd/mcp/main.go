@@ -297,7 +297,10 @@ func main() {
 		Name: "sanskrit_search",
 		Description: `Search Sanskrit dictionaries. Supports 4 modes: exact (exact word match), prefix (words starting with query), fuzzy (words containing query), reverse (full-text search in article content). Default limit is 50 results.
 
-IMPORTANT: When presenting results to users, ALWAYS cite the dictionary source (dict_name) for each definition. Example: "yoga (MW): union, joining..." where MW = Monier-Williams.`,
+IMPORTANT:
+- ALWAYS cite the dictionary source (dict_name) for each definition
+- When translating definitions to user's language, include original English/German/French terms in brackets for reference. Example: "соединённый (joined), связанный (connected)"
+- TRANSLATE vs ANALYZE: When user asks to "translate" a word, provide ONLY dictionary definitions without commentary. When user asks to "analyze" or "explain", spend ~40% on dictionary data and ~60% on your own thinking: grammatical analysis, etymology, contextual usage, philosophical implications, and scholarly insights. Stay rigorous and scientific—distinguish established facts from interpretation, cite sources for claims, and avoid speculation presented as fact.`,
 	}, handleSearch)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -309,7 +312,9 @@ IMPORTANT: When presenting results to users, ALWAYS cite the dictionary source (
 		Name: "sanskrit_get_article",
 		Description: `Retrieve the full content of a dictionary article by its ID. Use article IDs from search results.
 
-IMPORTANT: When presenting article content to users, ALWAYS cite the dictionary source (dict_name). Include the dictionary name and year when available.`,
+IMPORTANT:
+- ALWAYS cite the dictionary source (dict_name) with year when available
+- When translating article content to user's language, include original terms in brackets for scholarly reference. Example: "запряжённый (yoked), соединённый (joined)"`,
 	}, handleGetArticle)
 
 	mcp.AddTool(server, &mcp.Tool{
