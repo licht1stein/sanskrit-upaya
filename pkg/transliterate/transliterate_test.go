@@ -39,6 +39,97 @@ func TestIASTToDevanagari(t *testing.T) {
 	}
 }
 
+func TestDevanagariToIAST(t *testing.T) {
+	tests := []struct {
+		deva string
+		want string
+	}{
+		{"अ", "a"},
+		{"क", "ka"},
+		{"कि", "ki"},
+		{"कु", "ku"},
+		{"का", "kā"},
+		{"कृ", "kṛ"},
+		{"के", "ke"},
+		{"को", "ko"},
+		{"कै", "kai"},
+		{"कौ", "kau"},
+		{"ं", "ṃ"},
+		{"ः", "ḥ"},
+		{"संस्कृत", "saṃskṛta"},
+		{"नमस्ते", "namaste"},
+		{"योग", "yoga"},
+		{"धर्म", "dharma"},
+		{"कर्म", "karma"},
+		{"जनक", "janaka"},
+		{"राम", "rāma"},
+		{"कृष्ण", "kṛṣṇa"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.deva, func(t *testing.T) {
+			got := DevanagariToIAST(tt.deva)
+			if got != tt.want {
+				t.Errorf("DevanagariToIAST(%q) = %q, want %q", tt.deva, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRoundtrip(t *testing.T) {
+	// IAST -> Devanagari -> IAST should return original
+	iastTests := []string{
+		"a", "ā", "i", "ī", "u", "ū",
+		"ṛ", "ṝ", "ḷ",
+		"e", "ai", "o", "au",
+		"ka", "kha", "ga", "gha", "ṅa",
+		"ca", "cha", "ja", "jha", "ña",
+		"ṭa", "ṭha", "ḍa", "ḍha", "ṇa",
+		"ta", "tha", "da", "dha", "na",
+		"pa", "pha", "ba", "bha", "ma",
+		"ya", "ra", "la", "va",
+		"śa", "ṣa", "sa", "ha",
+		"saṃskṛta", "namaste", "yoga", "dharma", "karma",
+		"janaka", "rāma", "kṛṣṇa", "āśrama", "upaniṣad",
+	}
+
+	for _, iast := range iastTests {
+		t.Run("IAST_"+iast, func(t *testing.T) {
+			deva := IASTToDevanagari(iast)
+			back := DevanagariToIAST(deva)
+			if back != iast {
+				t.Errorf("Roundtrip failed: %q -> %q -> %q", iast, deva, back)
+			}
+		})
+	}
+
+	// Devanagari -> IAST -> Devanagari should return original
+	devaTests := []string{
+		"अ", "आ", "इ", "ई", "उ", "ऊ",
+		"ऋ", "ॠ", "ऌ",
+		"ए", "ऐ", "ओ", "औ",
+		"क", "ख", "ग", "घ", "ङ",
+		"च", "छ", "ज", "झ", "ञ",
+		"ट", "ठ", "ड", "ढ", "ण",
+		"त", "थ", "द", "ध", "न",
+		"प", "फ", "ब", "भ", "म",
+		"य", "र", "ल", "व",
+		"श", "ष", "स", "ह",
+		"संस्कृत", "नमस्ते", "योग", "धर्म", "कर्म",
+		"जनक", "राम", "कृष्ण", "आश्रम", "उपनिषद्",
+	}
+
+	for _, deva := range devaTests {
+		t.Run("Deva_"+deva, func(t *testing.T) {
+			iast := DevanagariToIAST(deva)
+			back := IASTToDevanagari(iast)
+			if back != deva {
+				t.Errorf("Roundtrip failed: %q -> %q -> %q", deva, iast, back)
+			}
+		})
+	}
+}
+
 func TestIsDevanagari(t *testing.T) {
 	tests := []struct {
 		s    string

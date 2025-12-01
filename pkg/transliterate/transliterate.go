@@ -31,6 +31,50 @@ var iastToSLP = map[string]string{
 	"'": "'",
 }
 
+// Devanagari to IAST mapping
+var devaToIAST = map[rune]string{
+	// Independent vowels
+	'अ': "a", 'आ': "ā", 'इ': "i", 'ई': "ī", 'उ': "u", 'ऊ': "ū",
+	'ऋ': "ṛ", 'ॠ': "ṝ", 'ऌ': "ḷ", 'ॡ': "ḹ",
+	'ए': "e", 'ऐ': "ai", 'ओ': "o", 'औ': "au",
+	// Anusvara, visarga, candrabindu
+	'ं': "ṃ", 'ः': "ḥ", 'ँ': "~",
+	// Velars
+	'क': "k", 'ख': "kh", 'ग': "g", 'घ': "gh", 'ङ': "ṅ",
+	// Palatals
+	'च': "c", 'छ': "ch", 'ज': "j", 'झ': "jh", 'ञ': "ñ",
+	// Retroflexes
+	'ट': "ṭ", 'ठ': "ṭh", 'ड': "ḍ", 'ढ': "ḍh", 'ण': "ṇ",
+	// Dentals
+	'त': "t", 'थ': "th", 'द': "d", 'ध': "dh", 'न': "n",
+	// Labials
+	'प': "p", 'फ': "ph", 'ब': "b", 'भ': "bh", 'म': "m",
+	// Semivowels
+	'य': "y", 'र': "r", 'ल': "l", 'व': "v",
+	// Sibilants
+	'श': "ś", 'ष': "ṣ", 'स': "s", 'ह': "h",
+	// Avagraha
+	'ऽ': "'",
+}
+
+// Devanagari mātrās to IAST vowels
+var matraToIAST = map[rune]string{
+	'ा': "ā", 'ि': "i", 'ी': "ī", 'ु': "u", 'ू': "ū",
+	'ृ': "ṛ", 'ॄ': "ṝ", 'ॢ': "ḷ", 'ॣ': "ḹ",
+	'े': "e", 'ै': "ai", 'ो': "o", 'ौ': "au",
+}
+
+// Devanagari consonants (for detecting inherent 'a')
+var devaConsonants = map[rune]bool{
+	'क': true, 'ख': true, 'ग': true, 'घ': true, 'ङ': true,
+	'च': true, 'छ': true, 'ज': true, 'झ': true, 'ञ': true,
+	'ट': true, 'ठ': true, 'ड': true, 'ढ': true, 'ण': true,
+	'त': true, 'थ': true, 'द': true, 'ध': true, 'न': true,
+	'प': true, 'फ': true, 'ब': true, 'भ': true, 'म': true,
+	'य': true, 'र': true, 'ल': true, 'व': true,
+	'श': true, 'ष': true, 'स': true, 'ह': true,
+}
+
 // SLP1 to Devanagari mapping
 var slpToDeva = map[rune]string{
 	// Vowels (independent)
@@ -233,4 +277,52 @@ func unique(strs []string) []string {
 		}
 	}
 	return result
+}
+
+// DevanagariToIAST converts Devanagari script to IAST transliteration.
+func DevanagariToIAST(deva string) string {
+	var result strings.Builder
+	runes := []rune(deva)
+	virāma := '्'
+
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+
+		if r == virāma {
+			// Virāma cancels inherent 'a', skip it
+			continue
+		}
+
+		if devaConsonants[r] {
+			// Write the consonant
+			if iast, ok := devaToIAST[r]; ok {
+				result.WriteString(iast)
+			}
+			// Check what follows
+			if i+1 < len(runes) {
+				next := runes[i+1]
+				if next == virāma {
+					// Virāma follows - no inherent 'a'
+					continue
+				}
+				if _, isMatra := matraToIAST[next]; isMatra {
+					// Mātrā follows - vowel will be added in next iteration
+					continue
+				}
+			}
+			// Add inherent 'a' (no virāma or mātrā follows)
+			result.WriteString("a")
+		} else if iast, isMatra := matraToIAST[r]; isMatra {
+			// Dependent vowel sign
+			result.WriteString(iast)
+		} else if iast, ok := devaToIAST[r]; ok {
+			// Independent vowel or other character
+			result.WriteString(iast)
+		} else {
+			// Pass through (spaces, punctuation, numbers)
+			result.WriteRune(r)
+		}
+	}
+
+	return result.String()
 }
