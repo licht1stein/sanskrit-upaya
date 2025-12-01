@@ -2,7 +2,7 @@ name: Update Scoop Bucket
 
 on:
   release:
-    types: [published]
+    types: [published, edited]
   workflow_dispatch:
     inputs:
       version:
