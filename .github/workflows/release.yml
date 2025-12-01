@@ -237,7 +237,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Casks/sanskrit-upaya.rb
-          git commit -m "Update sanskrit-upaya to ${{ steps.version.outputs.VERSION }}"
+          git diff --staged --quiet || git commit -m "Update sanskrit-upaya to ${{ steps.version.outputs.VERSION }}"
           git push
 
   update-flake:
@@ -285,7 +285,9 @@ jobs:
         if: steps.deps.outputs.changed == 'true'
         id: hash
         run: |
-          NEW_HASH=$(NIX_CONFIG="experimental-features = nix-command flakes" nix shell nixpkgs#nix-prefetch -c nix-prefetch \
+          mkdir -p ~/.config/nix
+          echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+          NEW_HASH=$(nix shell nixpkgs#nix-prefetch -c nix-prefetch \
             "{ sha256 }: ((builtins.getFlake \"path:$PWD\").packages.x86_64-linux.sanskrit-upaya.overrideAttrs { vendorHash = sha256; }).goModules")
           echo "New vendorHash: $NEW_HASH"
           echo "HASH=$NEW_HASH" >> $GITHUB_OUTPUT
@@ -377,5 +379,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add bucket/sanskrit-upaya.json
-          git commit -m "Update sanskrit-upaya to ${{ steps.version.outputs.VERSION }}"
+          git diff --staged --quiet || git commit -m "Update sanskrit-upaya to ${{ steps.version.outputs.VERSION }}"
           git push
