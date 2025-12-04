@@ -41,6 +41,7 @@ sanskrit-upaya/
 ├── pkg/
 │   ├── dictdata/         # Embedded dictionary metadata JSON
 │   ├── download/         # First-run database download from server
+│   ├── ocr/              # Google Cloud Vision OCR for Sanskrit/Devanagari
 │   ├── search/search.go  # SQLite FTS5 search engine + dict filtering
 │   ├── state/state.go    # User settings, history, starred articles (SQLite)
 │   └── transliterate/    # IAST ↔ SLP1 ↔ Devanagari conversion
@@ -133,6 +134,7 @@ Add to your Claude Code MCP settings (`~/.config/claude/claude_desktop_config.js
 | `sanskrit_list_dictionaries` | List all 36 dictionaries with descriptions                      |
 | `sanskrit_get_article`       | Retrieve full article content by ID                             |
 | `sanskrit_transliterate`     | Convert between IAST and Devanagari                             |
+| `sanskrit_ocr`               | OCR Sanskrit/Devanagari text from images (requires GCP setup)   |
 
 ### Example Usage (from Claude)
 
@@ -140,6 +142,24 @@ Add to your Claude Code MCP settings (`~/.config/claude/claude_desktop_config.js
 - "What does 'dharma' mean? Search in exact mode"
 - "Transliterate 'namaste' to Devanagari"
 - "List available Sanskrit dictionaries"
+- "OCR this Sanskrit manuscript image"
+
+### OCR Setup
+
+The `sanskrit_ocr` tool requires Google Cloud Vision API credentials. Run the setup command:
+
+```bash
+sanskrit-mcp ocr-setup
+```
+
+This will:
+
+1. Check/install gcloud CLI authentication
+2. Create a GCP project `sanskrit-upaya-ocr`
+3. Enable Vision API
+4. Configure Application Default Credentials
+
+**Free tier**: 1000 images/month, then $1.50/1000.
 
 ### Prerequisites
 
@@ -250,9 +270,19 @@ starred(id, article_id, word, dict_code, created_at)  -- Starred articles
 ### cmd/mcp/main.go
 
 - MCP server using `github.com/modelcontextprotocol/go-sdk/mcp`
-- 4 tools: `sanskrit_search`, `sanskrit_list_dictionaries`, `sanskrit_get_article`, `sanskrit_transliterate`
+- 5 tools: `sanskrit_search`, `sanskrit_list_dictionaries`, `sanskrit_get_article`, `sanskrit_transliterate`, `sanskrit_ocr`
+- `ocr-setup` subcommand for automated Google Cloud setup
 - Lazy database initialization (checks on first tool call)
 - Embedded dictionary descriptions from `pkg/dictdata/dictionaries.json`
+
+### pkg/ocr/ocr.go
+
+- Google Cloud Vision API client wrapper
+- `NewClient(ctx)` - Creates client using Application Default Credentials
+- `RecognizeText/RecognizeFile/RecognizeBase64` - OCR methods
+- `CheckCredentials(ctx)` - Verifies API access
+- Image format validation (PNG, JPG, TIFF) via magic bytes
+- 30-second timeout, 20MB size limit
 
 ## TODO / Future Work
 
@@ -286,6 +316,7 @@ Dictionary data from [Cologne Digital Sanskrit Dictionaries](https://www.sanskri
 - `fyne.io/fyne/v2` - Cross-platform UI framework
 - `modernc.org/sqlite` - Pure Go SQLite
 - `github.com/modelcontextprotocol/go-sdk/mcp` - MCP server SDK (for cmd/mcp)
+- `cloud.google.com/go/vision/v2` - Google Cloud Vision API (for OCR)
 
 ## Common Issues
 

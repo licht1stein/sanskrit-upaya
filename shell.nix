@@ -21,6 +21,9 @@ pkgs.mkShell {
 
     # Fonts for Devanagari rendering
     noto-fonts
+
+    # Google Cloud CLI (for OCR setup)
+    google-cloud-sdk
   ];
 
   shellHook = ''
