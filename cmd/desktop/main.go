@@ -217,7 +217,6 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	currentMode := search.ModeExact // Default to exact
 	var groupedResults []GroupedResult
 	var cachedResults []search.Result // Cache raw results for re-grouping
-	var currentQuery string           // Track current search term for highlighting
 
 	// Lazy loading - only show first N results, load more on demand
 	const initialDisplayLimit = 100
@@ -429,6 +428,9 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	contentHeaderLabel.TextStyle = fyne.TextStyle{Bold: true}
 	contentHeaderRow := container.NewHBox(contentHeaderLabel) // Will add star button dynamically
 
+	// Store current article content for copy functionality
+	var currentArticleContent string
+
 	// Holder for the main content (either scroll or tabs)
 	contentHolder := container.NewStack(contentScroll)
 
@@ -556,9 +558,18 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			}
 			headerStarBtn.Importance = widget.LowImportance
 
-			// Update header row with label and star button
+			// Copy button for article content
+			copyBtn := widget.NewButtonWithIcon("", theme.ContentCopyIcon(), func() {
+				if currentArticleContent != "" {
+					w.Clipboard().SetContent(currentArticleContent)
+				}
+			})
+			copyBtn.Importance = widget.LowImportance
+
+			// Update header row with label, copy button, and star button
 			contentHeaderRow.RemoveAll()
 			contentHeaderRow.Add(contentHeaderLabel)
+			contentHeaderRow.Add(copyBtn)
 			contentHeaderRow.Add(headerStarBtn)
 			contentHeaderRow.Refresh()
 
@@ -580,7 +591,8 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 					}
 					articleContent, err := getContent(articleID)
 					if err == nil {
-						content := createArticleContent(articleContent, currentQuery)
+						currentArticleContent = cleanHTML(articleContent)
+						content := createSelectableArticleContent(articleContent)
 						contentContainer.Add(content)
 					}
 					// Restore status
@@ -612,7 +624,8 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 					}
 					articleContent, err := getContent(articleID)
 					if err == nil {
-						content := createArticleContent(articleContent, currentQuery)
+						currentArticleContent = cleanHTML(articleContent)
+						content := createSelectableArticleContent(articleContent)
 						tabContent.Add(content)
 					}
 					restoreStatus()
@@ -657,7 +670,8 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 									}
 									articleContent, err := getContent(articleID)
 									if err == nil {
-										content := createArticleContent(articleContent, currentQuery)
+										currentArticleContent = cleanHTML(articleContent)
+										content := createSelectableArticleContent(articleContent)
 										vbox.Add(content)
 									}
 									restoreStatus()
@@ -835,7 +849,6 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		query = strings.TrimSpace(query)
 
 		if query == "" {
-			currentQuery = ""
 			groupedResults = nil
 			displayLimit = initialDisplayLimit // Reset lazy loading
 			setStatus("Ready")
@@ -849,9 +862,6 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			setStatus("Type at least 2 characters...")
 			return
 		}
-
-		// Store query for highlighting
-		currentQuery = query
 
 		// Clear content cache for new search
 		contentCacheMu.Lock()
@@ -1138,7 +1148,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			starredContent.Add(dictHeader)
 
 			for _, article := range results {
-				content := createArticleContent(article.Content, "")
+				content := createSelectableArticleContent(article.Content)
 				starredContent.Add(content)
 				starredContent.Add(widget.NewSeparator())
 			}
