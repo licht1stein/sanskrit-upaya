@@ -355,7 +355,7 @@ const ocrProjectID = "sanskrit-upaya-ocr"
 
 // runOCRSetup performs automated Google Cloud setup for OCR.
 func runOCRSetup() {
-	fmt.Println("\n=== Sanskrit Upaya OCR Setup ===\n")
+	fmt.Println("\n=== Sanskrit Upaya OCR Setup ===")
 
 	// Step 1: Check if gcloud is installed
 	if !isGcloudInstalled() {
