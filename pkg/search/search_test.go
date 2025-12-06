@@ -7,7 +7,7 @@ import (
 // createTestDB creates an in-memory database with sample dictionary data.
 func createTestDB(t *testing.T) *DB {
 	t.Helper()
-	
+
 	db, err := Open(":memory:")
 	if err != nil {
 		t.Fatalf("Open() error = %v", err)
@@ -192,10 +192,10 @@ func TestSearchModePrefix(t *testing.T) {
 	defer db.Close()
 
 	tests := []struct {
-		name        string
-		query       string
-		minResults  int // At least this many
-		shouldFind  []string
+		name       string
+		query      string
+		minResults int // At least this many
+		shouldFind []string
 	}{
 		{"dhar prefix", "dhar", 2, []string{"dharma", "dharmakāya"}},
 		{"dharma exact as prefix", "dharma", 2, []string{"dharma", "dharmakāya"}},
