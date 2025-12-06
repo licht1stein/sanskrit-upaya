@@ -607,88 +607,134 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 				contentHolder.Add(contentScroll)
 				contentScroll.ScrollToTop()
 			} else {
-				// Multiple dictionaries - show first dictionary's first article
-				entry := gr.Entries[0]
-				tabContent := container.NewVBox()
-				dictHeader := container.NewHBox(
-					newPillLabel(entry.DictCode),
-					widget.NewLabel(entry.DictName),
-				)
-				tabContent.Add(dictHeader)
+				// Multiple dictionaries - create tabs with "All" tab first
+				tabs := container.NewAppTabs()
 
-				// Fetch first article content (from cache or DB)
-				if len(entry.Articles) > 0 {
-					articleID := entry.Articles[0].ArticleID
-					if !isContentCached(articleID) {
-						setStatus("Loading...")
-					}
-					articleContent, err := getContent(articleID)
-					if err == nil {
-						currentArticleContent = cleanHTML(articleContent)
-						content := createSelectableArticleContent(articleContent)
-						tabContent.Add(content)
-					}
-					restoreStatus()
-					if len(entry.Articles) > 1 {
-						moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(entry.Articles)-1))
-						moreLabel.Importance = widget.LowImportance
-						tabContent.Add(moreLabel)
-					}
+				// Track loaded article texts for "All" tab copy functionality
+				var allArticleTexts []string
+				allTabLoaded := false
+
+				// Add "All" tab with placeholder (lazy-loaded)
+				// Wrap in Stack to prevent content from expanding window
+				allContent := container.NewVBox(widget.NewLabel("Loading..."))
+				allScroll := container.NewVScroll(allContent)
+				tabs.Append(container.NewTabItem("All", container.NewStack(allScroll)))
+
+				// Add individual dictionary tabs with placeholders
+				// Keep references to content containers for lazy loading
+				dictContents := make(map[string]*fyne.Container)
+				dictLoaded := make(map[string]bool)
+
+				for _, e := range gr.Entries {
+					contentBox := container.NewVBox(widget.NewLabel("Loading..."))
+					dictContents[e.DictCode] = contentBox
+					contentScroll := container.NewVScroll(contentBox)
+					tabs.Append(container.NewTabItem(e.DictCode, container.NewStack(contentScroll)))
 				}
 
-				// Create tabs - only first tab has content, others load on select
-				tabs := container.NewAppTabs()
-				tabScroll := container.NewVScroll(tabContent)
-				tabs.Append(container.NewTabItem(entry.DictCode, tabScroll))
+				// Helper to load "All" tab content
+				loadAllTab := func() {
+					if allTabLoaded {
+						return
+					}
+					allContent.RemoveAll()
+					allArticleTexts = nil
 
-				// Add placeholder tabs for other dictionaries
-				for i := 1; i < len(gr.Entries); i++ {
-					e := gr.Entries[i]
-					placeholder := container.NewVBox(widget.NewLabel("Loading..."))
-					tabs.Append(container.NewTabItem(e.DictCode, placeholder))
+					for _, e := range gr.Entries {
+						dictHeader := container.NewHBox(
+							newPillLabel(e.DictCode),
+							widget.NewLabel(e.DictName),
+						)
+						allContent.Add(dictHeader)
+
+						if len(e.Articles) > 0 {
+							articleID := e.Articles[0].ArticleID
+							if !isContentCached(articleID) {
+								setStatus("Loading...")
+							}
+							articleContent, err := getContent(articleID)
+							if err == nil {
+								allArticleTexts = append(allArticleTexts, cleanHTML(articleContent))
+								content := createSelectableArticleContent(articleContent)
+								allContent.Add(content)
+							}
+							restoreStatus()
+							if len(e.Articles) > 1 {
+								moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(e.Articles)-1))
+								moreLabel.Importance = widget.LowImportance
+								allContent.Add(moreLabel)
+							}
+						}
+						allContent.Add(widget.NewSeparator())
+					}
+					allContent.Refresh()
+					allTabLoaded = true
+					currentArticleContent = strings.Join(allArticleTexts, "\n\n---\n\n")
+				}
+
+				// Helper to load individual dictionary tab
+				loadDictTab := func(e DictEntry) {
+					if dictLoaded[e.DictCode] {
+						// Already loaded, just update copy content
+						if len(e.Articles) > 0 {
+							articleID := e.Articles[0].ArticleID
+							articleContent, err := getContent(articleID)
+							if err == nil {
+								currentArticleContent = cleanHTML(articleContent)
+							}
+						}
+						return
+					}
+
+					vbox := dictContents[e.DictCode]
+					vbox.RemoveAll()
+					dictHeader := container.NewHBox(
+						newPillLabel(e.DictCode),
+						widget.NewLabel(e.DictName),
+					)
+					vbox.Add(dictHeader)
+
+					if len(e.Articles) > 0 {
+						articleID := e.Articles[0].ArticleID
+						if !isContentCached(articleID) {
+							setStatus("Loading...")
+						}
+						articleContent, err := getContent(articleID)
+						if err == nil {
+							currentArticleContent = cleanHTML(articleContent)
+							content := createSelectableArticleContent(articleContent)
+							vbox.Add(content)
+						}
+						restoreStatus()
+						if len(e.Articles) > 1 {
+							moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(e.Articles)-1))
+							moreLabel.Importance = widget.LowImportance
+							vbox.Add(moreLabel)
+						}
+					}
+					vbox.Refresh()
+					dictLoaded[e.DictCode] = true
 				}
 
 				// Lazy-load tab content on selection
 				tabs.OnSelected = func(tab *container.TabItem) {
+					if tab.Text == "All" {
+						loadAllTab()
+						currentArticleContent = strings.Join(allArticleTexts, "\n\n---\n\n")
+						return
+					}
 					// Find which entry this tab corresponds to
-					for i, e := range gr.Entries {
-						if e.DictCode == tab.Text && i > 0 {
-							// Load content for this tab if not already loaded
-							vbox, ok := tab.Content.(*fyne.Container)
-							if ok && len(vbox.Objects) == 1 {
-								// Still has placeholder, load real content
-								vbox.RemoveAll()
-								dictHeader := container.NewHBox(
-									newPillLabel(e.DictCode),
-									widget.NewLabel(e.DictName),
-								)
-								vbox.Add(dictHeader)
-								if len(e.Articles) > 0 {
-									articleID := e.Articles[0].ArticleID
-									if !isContentCached(articleID) {
-										setStatus("Loading...")
-									}
-									articleContent, err := getContent(articleID)
-									if err == nil {
-										currentArticleContent = cleanHTML(articleContent)
-										content := createSelectableArticleContent(articleContent)
-										vbox.Add(content)
-									}
-									restoreStatus()
-									if len(e.Articles) > 1 {
-										moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(e.Articles)-1))
-										moreLabel.Importance = widget.LowImportance
-										vbox.Add(moreLabel)
-									}
-								}
-								vbox.Refresh()
-							}
+					for _, e := range gr.Entries {
+						if e.DictCode == tab.Text {
+							loadDictTab(e)
 							break
 						}
 					}
 				}
 
+				// Select first individual dictionary tab by default (faster initial load)
 				tabs.SetTabLocation(container.TabLocationTop)
+				tabs.SelectIndex(1) // Select first dictionary tab, not "All"
 				contentHolder.Add(tabs)
 			}
 
