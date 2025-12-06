@@ -582,27 +582,26 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 				)
 				contentContainer.Add(dictHeader)
 
-				// Fetch and display first article content (from cache or DB)
-				if len(entry.Articles) > 0 {
-					articleID := entry.Articles[0].ArticleID
-					// Show loading if not cached
+				// Fetch and display all articles for this dictionary
+				var articleTexts []string
+				for i, article := range entry.Articles {
+					articleID := article.ArticleID
 					if !isContentCached(articleID) {
 						setStatus("Loading...")
 					}
 					articleContent, err := getContent(articleID)
 					if err == nil {
-						currentArticleContent = cleanHTML(articleContent)
+						articleTexts = append(articleTexts, cleanHTML(articleContent))
 						content := createSelectableArticleContent(articleContent)
 						contentContainer.Add(content)
+						// Add separator between articles (but not after the last one)
+						if i < len(entry.Articles)-1 {
+							contentContainer.Add(widget.NewSeparator())
+						}
 					}
-					// Restore status
 					restoreStatus()
-					if len(entry.Articles) > 1 {
-						moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(entry.Articles)-1))
-						moreLabel.Importance = widget.LowImportance
-						contentContainer.Add(moreLabel)
-					}
 				}
+				currentArticleContent = strings.Join(articleTexts, "\n\n---\n\n")
 				contentContainer.Refresh()
 				contentHolder.Add(contentScroll)
 				contentScroll.ScrollToTop()
@@ -647,8 +646,9 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 						)
 						allContent.Add(dictHeader)
 
-						if len(e.Articles) > 0 {
-							articleID := e.Articles[0].ArticleID
+						// Show all articles for this dictionary
+						for i, article := range e.Articles {
+							articleID := article.ArticleID
 							if !isContentCached(articleID) {
 								setStatus("Loading...")
 							}
@@ -657,13 +657,12 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 								allArticleTexts = append(allArticleTexts, cleanHTML(articleContent))
 								content := createSelectableArticleContent(articleContent)
 								allContent.Add(content)
+								// Add separator between articles
+								if i < len(e.Articles)-1 {
+									allContent.Add(widget.NewSeparator())
+								}
 							}
 							restoreStatus()
-							if len(e.Articles) > 1 {
-								moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(e.Articles)-1))
-								moreLabel.Importance = widget.LowImportance
-								allContent.Add(moreLabel)
-							}
 						}
 						allContent.Add(widget.NewSeparator())
 					}
@@ -672,17 +671,14 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 					currentArticleContent = strings.Join(allArticleTexts, "\n\n---\n\n")
 				}
 
+				// Track article texts per dictionary for copy functionality
+				dictArticleTexts := make(map[string][]string)
+
 				// Helper to load individual dictionary tab
 				loadDictTab := func(e DictEntry) {
 					if dictLoaded[e.DictCode] {
 						// Already loaded, just update copy content
-						if len(e.Articles) > 0 {
-							articleID := e.Articles[0].ArticleID
-							articleContent, err := getContent(articleID)
-							if err == nil {
-								currentArticleContent = cleanHTML(articleContent)
-							}
-						}
+						currentArticleContent = strings.Join(dictArticleTexts[e.DictCode], "\n\n---\n\n")
 						return
 					}
 
@@ -694,24 +690,27 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 					)
 					vbox.Add(dictHeader)
 
-					if len(e.Articles) > 0 {
-						articleID := e.Articles[0].ArticleID
+					// Show all articles for this dictionary
+					var articleTexts []string
+					for i, article := range e.Articles {
+						articleID := article.ArticleID
 						if !isContentCached(articleID) {
 							setStatus("Loading...")
 						}
 						articleContent, err := getContent(articleID)
 						if err == nil {
-							currentArticleContent = cleanHTML(articleContent)
+							articleTexts = append(articleTexts, cleanHTML(articleContent))
 							content := createSelectableArticleContent(articleContent)
 							vbox.Add(content)
+							// Add separator between articles
+							if i < len(e.Articles)-1 {
+								vbox.Add(widget.NewSeparator())
+							}
 						}
 						restoreStatus()
-						if len(e.Articles) > 1 {
-							moreLabel := widget.NewLabel(fmt.Sprintf("... and %d more articles", len(e.Articles)-1))
-							moreLabel.Importance = widget.LowImportance
-							vbox.Add(moreLabel)
-						}
 					}
+					dictArticleTexts[e.DictCode] = articleTexts
+					currentArticleContent = strings.Join(articleTexts, "\n\n---\n\n")
 					vbox.Refresh()
 					dictLoaded[e.DictCode] = true
 				}
