@@ -196,3 +196,19 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+  update-homebrew:
+    needs: [release]
+    uses: ./.github/workflows/update-homebrew.yml
+    with:
+      version: ${{ github.ref_name }}
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  update-scoop:
+    needs: [release]
+    uses: ./.github/workflows/update-scoop.yml
+    with:
+      version: ${{ github.ref_name }}
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
