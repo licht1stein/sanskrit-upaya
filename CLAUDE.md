@@ -42,6 +42,7 @@ sanskrit-upaya/
 │   ├── dictdata/         # Embedded dictionary metadata JSON
 │   ├── download/         # First-run database download from server
 │   ├── ocr/              # Google Cloud Vision OCR for Sanskrit/Devanagari
+│   ├── gcloud/           # Google Cloud CLI utilities (shared between desktop and MCP)
 │   ├── search/search.go  # SQLite FTS5 search engine + dict filtering
 │   ├── state/state.go    # User settings, history, starred articles (SQLite)
 │   └── transliterate/    # IAST ↔ SLP1 ↔ Devanagari conversion
@@ -78,6 +79,7 @@ The dictionary database (~670MB) is NOT bundled with the binary. On first run:
 - **Zoom Control**: 50%-200% UI scaling with Ctrl/Cmd +/-
 - **Keyboard Navigation**: Arrow keys to navigate results, Ctrl/Cmd+K to focus search
 - **Transliteration**: Auto-converts between IAST and Devanagari for search
+- **OCR Support**: Recognize Sanskrit/Devanagari text from images (PNG, JPG, TIFF, PDF) via Google Cloud Vision
 - **MCP Server**: LLM integration via Model Context Protocol for Claude Code and other MCP clients
 
 ## Key Design Decisions
@@ -107,6 +109,34 @@ go build -o sanskrit-upaya ./cmd/desktop
 # Build MCP server
 go build -o sanskrit-mcp ./cmd/mcp
 ```
+
+## Desktop OCR
+
+The desktop app includes OCR functionality for recognizing Sanskrit/Devanagari text from images.
+
+### Using OCR
+
+1. Click the **OCR** button in the toolbar (or press Ctrl/Cmd+O)
+2. If first time, complete the setup wizard (requires Google Cloud CLI)
+3. Drop an image file (PNG, JPG, TIFF, PDF) onto the window
+4. View and edit the recognized text
+5. Click **Search** to look up recognized words in the dictionary
+
+### OCR Setup
+
+The desktop app includes a setup wizard that guides you through:
+
+1. Installing Google Cloud CLI (if not present)
+2. Authenticating with your Google account
+3. Creating a GCP project for Vision API
+4. Enabling the Vision API
+5. Setting up Application Default Credentials
+
+**Free tier**: 1000 images/month, then $1.50/1000.
+
+### Keyboard Shortcuts
+
+- **Ctrl/Cmd+O**: Open OCR window
 
 ## MCP Server
 
@@ -248,6 +278,22 @@ starred(id, article_id, word, dict_code, created_at)  -- Starred articles
 - `navigateTo()` - Displays selected result with star button
 - Dialog builders for: History, Starred Articles, Dictionary Selection
 
+### cmd/desktop/ocr.go
+
+- `OCRWindow` - Separate window for OCR functionality
+- Drop zone UI with drag-and-drop support
+- Processing state with spinner and cancel
+- Result editor with copy/search integration
+- File validation (extension, size limits)
+
+### cmd/desktop/ocr_setup.go
+
+- `OCRSetupWizard` - GUI wizard for Google Cloud setup
+- Step-by-step progress through: auth → project → API → ADC
+- Real-time command output streaming
+- Error handling with re-run capability
+- Billing setup integration
+
 ### pkg/search/search.go
 
 - `Search(query, mode, dictCodes)` - Main search with optional dict filtering
@@ -283,6 +329,15 @@ starred(id, article_id, word, dict_code, created_at)  -- Starred articles
 - `CheckCredentials(ctx)` - Verifies API access
 - Image format validation (PNG, JPG, TIFF, PDF) via magic bytes
 - 30-second timeout, 20MB size limit
+
+### pkg/gcloud/gcloud.go
+
+- Shared Google Cloud CLI utilities
+- `IsInstalled()`, `IsAuthenticated()` - CLI status checks
+- `HasApplicationDefaultCredentials()` - ADC check
+- `GetOrCreateOCRProjectID()` - Persistent project ID management
+- `RunCommand()`, `RunCommandAsync()` - Command execution with output streaming
+- `OpenBrowser()` - Platform-specific browser opening
 
 ## TODO / Future Work
 

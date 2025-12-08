@@ -90,8 +90,14 @@ func (c *Client) RecognizeText(ctx context.Context, imageData []byte) (*Result, 
 	}
 
 	// Detect and validate image format
-	if !isValidImageFormat(imageData) {
+	format := detectImageFormat(imageData)
+	if format == "" {
 		return nil, ErrUnsupportedFormat
+	}
+
+	// PDFs require different processing
+	if format == "pdf" {
+		return c.recognizePDF(ctx, imageData)
 	}
 
 	// Apply timeout
@@ -136,6 +142,79 @@ func (c *Client) RecognizeText(ctx context.Context, imageData []byte) (*Result, 
 	return &Result{
 		Text:       imageResp.FullTextAnnotation.Text,
 		Confidence: confidence,
+	}, nil
+}
+
+// recognizePDF performs OCR on PDF data using BatchAnnotateFiles.
+func (c *Client) recognizePDF(ctx context.Context, pdfData []byte) (*Result, error) {
+	// Apply timeout
+	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	defer cancel()
+
+	// Create request for PDF processing
+	req := &visionpb.BatchAnnotateFilesRequest{
+		Requests: []*visionpb.AnnotateFileRequest{
+			{
+				InputConfig: &visionpb.InputConfig{
+					Content:  pdfData,
+					MimeType: "application/pdf",
+				},
+				Features: []*visionpb.Feature{
+					{Type: visionpb.Feature_DOCUMENT_TEXT_DETECTION},
+				},
+				// Process up to 5 pages (API limit for inline content)
+				Pages: []int32{1, 2, 3, 4, 5},
+			},
+		},
+	}
+
+	resp, err := c.client.BatchAnnotateFiles(ctx, req)
+	if err != nil {
+		return nil, classifyError(err)
+	}
+
+	// Check for errors in response
+	if len(resp.Responses) == 0 {
+		return &Result{Text: "", Confidence: 0.0}, nil
+	}
+
+	fileResp := resp.Responses[0]
+	if fileResp.Error != nil {
+		return nil, fmt.Errorf("OCR failed: %s", fileResp.Error.Message)
+	}
+
+	// Combine text from all pages
+	var allText strings.Builder
+	var totalConfidence float64
+	var wordCount int
+
+	for _, pageResp := range fileResp.Responses {
+		if pageResp.Error != nil {
+			continue
+		}
+		if pageResp.FullTextAnnotation != nil && pageResp.FullTextAnnotation.Text != "" {
+			if allText.Len() > 0 {
+				allText.WriteString("\n\n--- Page Break ---\n\n")
+			}
+			allText.WriteString(pageResp.FullTextAnnotation.Text)
+
+			// Accumulate confidence
+			conf := calculateConfidence(pageResp.FullTextAnnotation)
+			if conf > 0 {
+				totalConfidence += conf
+				wordCount++
+			}
+		}
+	}
+
+	avgConfidence := 0.0
+	if wordCount > 0 {
+		avgConfidence = totalConfidence / float64(wordCount)
+	}
+
+	return &Result{
+		Text:       allText.String(),
+		Confidence: avgConfidence,
 	}, nil
 }
 
@@ -219,34 +298,34 @@ func CheckCredentials(ctx context.Context) error {
 	return nil
 }
 
-// isValidImageFormat checks if the image data starts with a valid magic number.
-func isValidImageFormat(data []byte) bool {
+// detectImageFormat returns the format type ("png", "jpeg", "tiff", "pdf") or empty string if unsupported.
+func detectImageFormat(data []byte) string {
 	if len(data) < 8 {
-		return false
+		return ""
 	}
 
 	// PNG: 89 50 4E 47 0D 0A 1A 0A
 	if data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 {
-		return true
+		return "png"
 	}
 
 	// JPEG: FF D8 FF
 	if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
-		return true
+		return "jpeg"
 	}
 
 	// TIFF: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
 	if (data[0] == 0x49 && data[1] == 0x49 && data[2] == 0x2A && data[3] == 0x00) ||
 		(data[0] == 0x4D && data[1] == 0x4D && data[2] == 0x00 && data[3] == 0x2A) {
-		return true
+		return "tiff"
 	}
 
 	// PDF: 25 50 44 46 (%PDF)
 	if data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46 {
-		return true
+		return "pdf"
 	}
 
-	return false
+	return ""
 }
 
 // calculateConfidence calculates the average confidence from word-level confidences.

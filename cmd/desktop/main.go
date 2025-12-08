@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"image/color"
@@ -23,6 +24,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/licht1stein/sanskrit-upaya/pkg/download"
+	"github.com/licht1stein/sanskrit-upaya/pkg/ocr"
 	"github.com/licht1stein/sanskrit-upaya/pkg/search"
 	"github.com/licht1stein/sanskrit-upaya/pkg/state"
 	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
@@ -1535,8 +1537,32 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	// Zoom control: just the dropdown
 	zoomControl := container.NewHBox(widget.NewLabel("Zoom:"), zoomSelect)
 
-	// Toolbar: mode + group checkbox on left, zoom + settings on right
-	toolbarRight := container.NewHBox(zoomControl, widget.NewSeparator(), settingsBtn)
+	// OCR button - opens OCR window or setup wizard
+	var ocrWindow *OCRWindow
+	ocrBtn := widget.NewButtonWithIcon("OCR", theme.DocumentIcon(), func() {
+		// Check if credentials are configured
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := ocr.CheckCredentials(ctx); err != nil {
+			// Show setup wizard
+			ShowOCRSetupDialog(w, a, func() {
+				// After setup completes, open OCR window
+				ocrWindow = NewOCRWindow(a, w, searchEntry, doSearch)
+				ocrWindow.Show()
+			})
+			return
+		}
+
+		// Credentials OK - open or focus OCR window
+		if ocrWindow == nil || ocrWindow.GetWindow().Canvas() == nil {
+			ocrWindow = NewOCRWindow(a, w, searchEntry, doSearch)
+		}
+		ocrWindow.Show()
+	})
+
+	// Toolbar: mode + group checkbox on left, zoom + ocr + settings on right
+	toolbarRight := container.NewHBox(zoomControl, widget.NewSeparator(), ocrBtn, settingsBtn)
 	toolbar := container.NewBorder(nil, nil, nil, toolbarRight,
 		container.NewHBox(modeGroup, widget.NewSeparator(), groupCheck, widget.NewSeparator(), dictsBtn),
 	)
@@ -1651,6 +1677,23 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		Modifier: fyne.KeyModifierSuper,
 	}, func(shortcut fyne.Shortcut) {
 		changeZoom(-1)
+	})
+
+	// Ctrl/Cmd + O to open OCR window
+	openOCR := func() {
+		ocrBtn.OnTapped()
+	}
+	w.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyO,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		openOCR()
+	})
+	w.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyO,
+		Modifier: fyne.KeyModifierSuper,
+	}, func(shortcut fyne.Shortcut) {
+		openOCR()
 	})
 
 	// Keyboard navigation (works even when search field is focused)

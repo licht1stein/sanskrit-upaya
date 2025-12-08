@@ -4,19 +4,16 @@ package main
 import (
 	"bufio"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/licht1stein/sanskrit-upaya/pkg/dictdata"
+	"github.com/licht1stein/sanskrit-upaya/pkg/gcloud"
 	"github.com/licht1stein/sanskrit-upaya/pkg/ocr"
 	"github.com/licht1stein/sanskrit-upaya/pkg/paths"
 	"github.com/licht1stein/sanskrit-upaya/pkg/search"
@@ -354,65 +351,15 @@ func handleOCR(ctx context.Context, req *mcp.CallToolRequest, args OCRArgs) (*mc
 	}, nil
 }
 
-const ocrProjectIDPrefix = "sanskrit-upaya-ocr"
-
-// getOCRProjectConfigPath returns the path to the file storing the user's OCR project ID.
-func getOCRProjectConfigPath() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	configDir := filepath.Join(home, ".config", "sanskrit-upaya")
-	return filepath.Join(configDir, "ocr-project-id"), nil
-}
-
-// getOrCreateOCRProjectID returns the user's OCR project ID, creating one if needed.
-// The project ID is stored in ~/.config/sanskrit-upaya/ocr-project-id
-func getOrCreateOCRProjectID() (string, error) {
-	configPath, err := getOCRProjectConfigPath()
-	if err != nil {
-		return "", err
-	}
-
-	// Check if we already have a project ID stored
-	if data, err := os.ReadFile(configPath); err == nil {
-		projectID := strings.TrimSpace(string(data))
-		if projectID != "" {
-			return projectID, nil
-		}
-	}
-
-	// Generate a new unique project ID with random suffix
-	randomBytes := make([]byte, 4)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return "", fmt.Errorf("failed to generate random suffix: %w", err)
-	}
-	suffix := hex.EncodeToString(randomBytes)
-	projectID := fmt.Sprintf("%s-%s", ocrProjectIDPrefix, suffix)
-
-	// Ensure config directory exists
-	configDir := filepath.Dir(configPath)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// Save the project ID
-	if err := os.WriteFile(configPath, []byte(projectID+"\n"), 0644); err != nil {
-		return "", fmt.Errorf("failed to save project ID: %w", err)
-	}
-
-	return projectID, nil
-}
-
 // runOCRSetup performs automated Google Cloud setup for OCR.
 func runOCRSetup() {
 	fmt.Println("\n=== Sanskrit Upaya OCR Setup ===")
 
 	// Step 1: Check if gcloud is installed
-	if !isGcloudInstalled() {
+	if !gcloud.IsInstalled() {
 		fmt.Println("❌ Google Cloud CLI (gcloud) not found.")
 		fmt.Println()
-		fmt.Println("Please install it from: https://cloud.google.com/sdk/docs/install")
+		fmt.Printf("Please install it from: %s\n", gcloud.GetInstallURL())
 		fmt.Println()
 		fmt.Println("After installing, restart your terminal and run this command again.")
 		os.Exit(1)
@@ -420,12 +367,12 @@ func runOCRSetup() {
 	fmt.Println("✓ Google Cloud CLI found")
 
 	// Step 2: Authenticate gcloud CLI (needed for project creation, API enabling)
-	if !isGcloudAuthenticated() {
+	if !gcloud.IsAuthenticated() {
 		fmt.Println()
 		fmt.Println("→ Authenticating gcloud CLI...")
 		fmt.Println("  A browser window will open. Please log in with your Google account.")
 		fmt.Println()
-		if !runGcloud("auth", "login") {
+		if !gcloud.RunCommand("auth", "login") {
 			fmt.Println("❌ Authentication failed. Please try again.")
 			os.Exit(1)
 		}
@@ -436,7 +383,7 @@ func runOCRSetup() {
 
 	// Step 3: Check if OCR already works (skip project setup if it does)
 	ctx := context.Background()
-	if hasApplicationDefaultCredentials() {
+	if gcloud.HasApplicationDefaultCredentials() {
 		if err := ocr.CheckCredentials(ctx); err == nil {
 			fmt.Println("✓ Application Default Credentials configured")
 			fmt.Println("✓ Vision API accessible")
@@ -447,7 +394,7 @@ func runOCRSetup() {
 	}
 
 	// Get or generate unique project ID for this user
-	ocrProjectID, err := getOrCreateOCRProjectID()
+	ocrProjectID, err := gcloud.GetOrCreateOCRProjectID()
 	if err != nil {
 		fmt.Printf("❌ Failed to get project ID: %v\n", err)
 		os.Exit(1)
@@ -457,12 +404,12 @@ func runOCRSetup() {
 	fmt.Println()
 	fmt.Println("→ Setting up GCP project for Vision API...")
 
-	if !projectExists(ocrProjectID) {
+	if !gcloud.ProjectExists(ocrProjectID) {
 		fmt.Printf("  Creating project '%s'...\n", ocrProjectID)
-		if !runGcloud("projects", "create", ocrProjectID, "--name=Sanskrit Upaya OCR") {
+		if !gcloud.RunCommand("projects", "create", ocrProjectID, "--name=Sanskrit Upaya OCR") {
 			fmt.Println()
 			fmt.Println("❌ Could not create project. You may need to:")
-			fmt.Println("   - Accept Google Cloud terms at https://console.cloud.google.com")
+			fmt.Printf("   - Accept Google Cloud terms at %s\n", gcloud.GetConsoleURL())
 			fmt.Println()
 			fmt.Println("After fixing, run this command again.")
 			os.Exit(1)
@@ -474,7 +421,7 @@ func runOCRSetup() {
 
 	// Step 5: Enable Vision API
 	fmt.Println("  Enabling Vision API...")
-	if !runGcloud("services", "enable", "vision.googleapis.com", "--project="+ocrProjectID) {
+	if !gcloud.RunCommand("services", "enable", "vision.googleapis.com", "--project="+ocrProjectID) {
 		fmt.Println()
 		fmt.Println("❌ Could not enable Vision API.")
 		fmt.Println("   You may need to enable billing at https://console.cloud.google.com/billing")
@@ -489,7 +436,7 @@ func runOCRSetup() {
 	fmt.Println("→ Setting up Application Default Credentials...")
 	fmt.Println("  A browser window will open. Please log in again.")
 	fmt.Println()
-	if !runGcloud("auth", "application-default", "login") {
+	if !gcloud.RunCommand("auth", "application-default", "login") {
 		fmt.Println("❌ ADC authentication failed.")
 		os.Exit(1)
 	}
@@ -497,7 +444,7 @@ func runOCRSetup() {
 
 	// Step 7: Set quota project
 	fmt.Println("  Setting quota project...")
-	if !runGcloud("auth", "application-default", "set-quota-project", ocrProjectID) {
+	if !gcloud.RunCommand("auth", "application-default", "set-quota-project", ocrProjectID) {
 		fmt.Println("❌ Could not set quota project.")
 		os.Exit(1)
 	}
@@ -515,8 +462,10 @@ func runOCRSetup() {
 			fmt.Println("(Free tier: 1000 images/month - you won't be charged unless you exceed this)")
 			fmt.Println()
 
-			billingURL := "https://console.developers.google.com/billing/enable?project=" + ocrProjectID
-			openBrowser(billingURL)
+			billingURL := gcloud.GetBillingURL(ocrProjectID)
+			if err := gcloud.OpenBrowser(billingURL); err != nil {
+				fmt.Printf("Please open: %s\n", billingURL)
+			}
 
 			fmt.Println("After enabling billing, press Enter to continue...")
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
@@ -541,85 +490,6 @@ func runOCRSetup() {
 	fmt.Println("=== OCR Setup Complete! ===")
 	fmt.Println()
 	fmt.Println("Free tier: 1000 images/month, then $1.50/1000")
-}
-
-// isGcloudInstalled checks if gcloud CLI is available.
-func isGcloudInstalled() bool {
-	_, err := exec.LookPath("gcloud")
-	return err == nil
-}
-
-// isGcloudAuthenticated checks if gcloud CLI has an active account.
-func isGcloudAuthenticated() bool {
-	cmd := exec.Command("gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)")
-	output, err := cmd.Output()
-	return err == nil && strings.TrimSpace(string(output)) != ""
-}
-
-// hasApplicationDefaultCredentials checks if ADC credentials exist.
-func hasApplicationDefaultCredentials() bool {
-	// Check GOOGLE_APPLICATION_CREDENTIALS env var
-	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
-		return true
-	}
-	// Check default location
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return false
-	}
-	credPath := home + "/.config/gcloud/application_default_credentials.json"
-	_, err = os.Stat(credPath)
-	return err == nil
-}
-
-// projectExists checks if a GCP project exists.
-func projectExists(projectID string) bool {
-	cmd := exec.Command("gcloud", "projects", "describe", projectID, "--format=value(projectId)")
-	cmd.Stderr = nil
-	output, err := cmd.Output()
-	return err == nil && strings.TrimSpace(string(output)) == projectID
-}
-
-// runGcloud runs a gcloud command with output visible to user.
-func runGcloud(args ...string) bool {
-	cmd := exec.Command("gcloud", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
-	return err == nil
-}
-
-// promptYesNo asks user a yes/no question.
-func promptYesNo(question string) bool {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("%s [Y/n]: ", question)
-	response, _ := reader.ReadString('\n')
-	response = strings.TrimSpace(strings.ToLower(response))
-	return response == "" || response == "y" || response == "yes"
-}
-
-// openBrowser opens a URL in the default browser.
-func openBrowser(url string) {
-	var cmd *exec.Cmd
-	switch {
-	case isCommandAvailable("xdg-open"):
-		cmd = exec.Command("xdg-open", url)
-	case isCommandAvailable("open"):
-		cmd = exec.Command("open", url)
-	case isCommandAvailable("start"):
-		cmd = exec.Command("cmd", "/c", "start", url)
-	default:
-		fmt.Printf("Please open: %s\n", url)
-		return
-	}
-	cmd.Start()
-}
-
-// isCommandAvailable checks if a command exists in PATH.
-func isCommandAvailable(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
 }
 
 func main() {
