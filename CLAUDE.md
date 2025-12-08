@@ -281,7 +281,7 @@ starred(id, article_id, word, dict_code, created_at)  -- Starred articles
 - `NewClient(ctx)` - Creates client using Application Default Credentials
 - `RecognizeText/RecognizeFile/RecognizeBase64` - OCR methods
 - `CheckCredentials(ctx)` - Verifies API access
-- Image format validation (PNG, JPG, TIFF) via magic bytes
+- Image format validation (PNG, JPG, TIFF, PDF) via magic bytes
 - 30-second timeout, 20MB size limit
 
 ## TODO / Future Work

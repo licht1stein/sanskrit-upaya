@@ -50,7 +50,7 @@ var ErrBillingDisabled = errors.New("billing not enabled for project")
 var ErrQuotaExceeded = errors.New("Google Cloud Vision API quota exceeded. Check your GCP console")
 
 // ErrUnsupportedFormat indicates the image format is not supported.
-var ErrUnsupportedFormat = errors.New("unsupported image format. Use PNG, JPG, or TIFF")
+var ErrUnsupportedFormat = errors.New("unsupported image format. Use PNG, JPG, TIFF, or PDF")
 
 // ErrImageTooLarge indicates the image exceeds the size limit.
 var ErrImageTooLarge = errors.New("image exceeds 20MB limit")
@@ -238,6 +238,11 @@ func isValidImageFormat(data []byte) bool {
 	// TIFF: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
 	if (data[0] == 0x49 && data[1] == 0x49 && data[2] == 0x2A && data[3] == 0x00) ||
 		(data[0] == 0x4D && data[1] == 0x4D && data[2] == 0x00 && data[3] == 0x2A) {
+		return true
+	}
+
+	// PDF: 25 50 44 46 (%PDF)
+	if data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46 {
 		return true
 	}
 

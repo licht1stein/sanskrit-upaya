@@ -686,7 +686,7 @@ Input: Absolute file path to the image (e.g., /home/user/manuscript.jpg or C:\Us
 
 Output: Recognized text and confidence score (0.0-1.0).
 
-Supports PNG, JPG, and TIFF formats. Max image size: 20MB.
+Supports PNG, JPG, TIFF, and PDF formats. Max image size: 20MB.
 
 Note: Requires Google Cloud credentials. Run 'sanskrit-mcp ocr-setup' for setup instructions.`,
 	}, handleOCR)
