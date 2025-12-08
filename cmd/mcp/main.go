@@ -4,12 +4,15 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -351,7 +354,55 @@ func handleOCR(ctx context.Context, req *mcp.CallToolRequest, args OCRArgs) (*mc
 	}, nil
 }
 
-const ocrProjectID = "sanskrit-upaya-ocr"
+const ocrProjectIDPrefix = "sanskrit-upaya-ocr"
+
+// getOCRProjectConfigPath returns the path to the file storing the user's OCR project ID.
+func getOCRProjectConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	configDir := filepath.Join(home, ".config", "sanskrit-upaya")
+	return filepath.Join(configDir, "ocr-project-id"), nil
+}
+
+// getOrCreateOCRProjectID returns the user's OCR project ID, creating one if needed.
+// The project ID is stored in ~/.config/sanskrit-upaya/ocr-project-id
+func getOrCreateOCRProjectID() (string, error) {
+	configPath, err := getOCRProjectConfigPath()
+	if err != nil {
+		return "", err
+	}
+
+	// Check if we already have a project ID stored
+	if data, err := os.ReadFile(configPath); err == nil {
+		projectID := strings.TrimSpace(string(data))
+		if projectID != "" {
+			return projectID, nil
+		}
+	}
+
+	// Generate a new unique project ID with random suffix
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", fmt.Errorf("failed to generate random suffix: %w", err)
+	}
+	suffix := hex.EncodeToString(randomBytes)
+	projectID := fmt.Sprintf("%s-%s", ocrProjectIDPrefix, suffix)
+
+	// Ensure config directory exists
+	configDir := filepath.Dir(configPath)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// Save the project ID
+	if err := os.WriteFile(configPath, []byte(projectID+"\n"), 0644); err != nil {
+		return "", fmt.Errorf("failed to save project ID: %w", err)
+	}
+
+	return projectID, nil
+}
 
 // runOCRSetup performs automated Google Cloud setup for OCR.
 func runOCRSetup() {
@@ -395,6 +446,13 @@ func runOCRSetup() {
 		}
 	}
 
+	// Get or generate unique project ID for this user
+	ocrProjectID, err := getOrCreateOCRProjectID()
+	if err != nil {
+		fmt.Printf("❌ Failed to get project ID: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Step 4: Create project if needed
 	fmt.Println()
 	fmt.Println("→ Setting up GCP project for Vision API...")
@@ -405,7 +463,6 @@ func runOCRSetup() {
 			fmt.Println()
 			fmt.Println("❌ Could not create project. You may need to:")
 			fmt.Println("   - Accept Google Cloud terms at https://console.cloud.google.com")
-			fmt.Println("   - Or the project name may already exist globally")
 			fmt.Println()
 			fmt.Println("After fixing, run this command again.")
 			os.Exit(1)
