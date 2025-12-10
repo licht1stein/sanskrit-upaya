@@ -19,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/licht1stein/sanskrit-upaya/pkg/ocr"
+	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
 )
 
 // Supported image extensions for OCR
@@ -68,7 +69,8 @@ type OCRWindow struct {
 
 	// Result view widgets (for direct update)
 	resultHeaderLabel *widget.Label
-	resultTextEntry   *widget.Entry
+	resultDevaEntry   *widget.Entry // Devanagari text (left side)
+	resultIASTEntry   *widget.Entry // IAST transliteration (right side)
 
 	// Error view widgets
 	errorMessageLabel *widget.Label
@@ -89,7 +91,7 @@ func NewOCRWindow(app fyne.App, mainWindow fyne.Window, searchEntry *widget.Entr
 	}
 
 	w.window = app.NewWindow("OCR")
-	w.window.Resize(fyne.NewSize(500, 400))
+	w.window.Resize(fyne.NewSize(700, 450))
 
 	w.buildUI()
 	return w
@@ -198,18 +200,53 @@ func (w *OCRWindow) buildResultUI() {
 	w.resultHeaderLabel = widget.NewLabel("File: - | Confidence: -")
 	w.resultHeaderLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Editable text area for result - store reference for updates
-	w.resultTextEntry = widget.NewMultiLineEntry()
-	w.resultTextEntry.Wrapping = fyne.TextWrapWord
-	w.resultTextEntry.SetMinRowsVisible(12)
+	// Devanagari text area (left side)
+	devaLabel := widget.NewLabel("Devanagari")
+	devaLabel.TextStyle = fyne.TextStyle{Bold: true}
+	devaLabel.Alignment = fyne.TextAlignCenter
 
-	// White background for text area
-	textBg := canvas.NewRectangle(color.White)
-	textWithBg := container.NewStack(textBg, w.resultTextEntry)
+	w.resultDevaEntry = widget.NewMultiLineEntry()
+	w.resultDevaEntry.Wrapping = fyne.TextWrapWord
+	w.resultDevaEntry.SetMinRowsVisible(10)
+
+	devaBg := canvas.NewRectangle(color.White)
+	devaWithBg := container.NewStack(devaBg, w.resultDevaEntry)
+
+	devaPanel := container.NewBorder(
+		devaLabel,
+		nil, nil, nil,
+		container.NewScroll(devaWithBg),
+	)
+
+	// IAST text area (right side)
+	iastLabel := widget.NewLabel("IAST")
+	iastLabel.TextStyle = fyne.TextStyle{Bold: true}
+	iastLabel.Alignment = fyne.TextAlignCenter
+
+	w.resultIASTEntry = widget.NewMultiLineEntry()
+	w.resultIASTEntry.Wrapping = fyne.TextWrapWord
+	w.resultIASTEntry.SetMinRowsVisible(10)
+
+	iastBg := canvas.NewRectangle(color.White)
+	iastWithBg := container.NewStack(iastBg, w.resultIASTEntry)
+
+	iastPanel := container.NewBorder(
+		iastLabel,
+		nil, nil, nil,
+		container.NewScroll(iastWithBg),
+	)
+
+	// Split view with both panels
+	splitView := container.NewHSplit(devaPanel, iastPanel)
+	splitView.SetOffset(0.5) // Equal split
 
 	// Buttons
-	copyBtn := widget.NewButtonWithIcon("Copy", theme.ContentCopyIcon(), func() {
-		w.window.Clipboard().SetContent(w.resultTextEntry.Text)
+	copyDevaBtn := widget.NewButtonWithIcon("Copy Deva", theme.ContentCopyIcon(), func() {
+		w.window.Clipboard().SetContent(w.resultDevaEntry.Text)
+	})
+
+	copyIASTBtn := widget.NewButtonWithIcon("Copy IAST", theme.ContentCopyIcon(), func() {
+		w.window.Clipboard().SetContent(w.resultIASTEntry.Text)
 	})
 
 	saveBtn := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
@@ -217,7 +254,7 @@ func (w *OCRWindow) buildResultUI() {
 	})
 
 	searchBtn := widget.NewButtonWithIcon("Search", theme.SearchIcon(), func() {
-		w.searchText(w.resultTextEntry.Text)
+		w.searchText("")
 	})
 	searchBtn.Importance = widget.HighImportance
 
@@ -227,13 +264,13 @@ func (w *OCRWindow) buildResultUI() {
 		newWindow.Show()
 	})
 
-	buttonRow := container.NewHBox(copyBtn, saveBtn, searchBtn, newImageBtn)
+	buttonRow := container.NewHBox(copyDevaBtn, copyIASTBtn, saveBtn, searchBtn, newImageBtn)
 
 	w.resultContent = container.NewBorder(
 		container.NewVBox(w.resultHeaderLabel, widget.NewSeparator()),
 		container.NewVBox(widget.NewSeparator(), container.NewCenter(buttonRow)),
 		nil, nil,
-		container.NewScroll(textWithBg),
+		splitView,
 	)
 }
 
@@ -424,7 +461,13 @@ func (w *OCRWindow) showProcessing(filePath string) {
 func (w *OCRWindow) showResult(filename, text string, confidence float64) {
 	// Update widgets directly using stored references
 	w.resultHeaderLabel.SetText(fmt.Sprintf("File: %s | Confidence: %.1f%%", filename, confidence*100))
-	w.resultTextEntry.SetText(text)
+
+	// Set Devanagari text (original OCR result)
+	w.resultDevaEntry.SetText(text)
+
+	// Generate IAST transliteration
+	iastText := transliterate.DevanagariToIAST(text)
+	w.resultIASTEntry.SetText(iastText)
 
 	w.mainContainer.RemoveAll()
 	w.mainContainer.Add(w.resultContent)
@@ -441,8 +484,11 @@ func (w *OCRWindow) showError(message string) {
 }
 
 func (w *OCRWindow) searchText(fullText string) {
-	// Use selected text if available, otherwise show hint
-	searchQuery := w.resultTextEntry.SelectedText()
+	// Use selected text from either Devanagari or IAST entry
+	searchQuery := w.resultDevaEntry.SelectedText()
+	if searchQuery == "" {
+		searchQuery = w.resultIASTEntry.SelectedText()
+	}
 	searchQuery = strings.TrimSpace(searchQuery)
 
 	if searchQuery == "" {
@@ -468,10 +514,14 @@ func (w *OCRWindow) searchText(fullText string) {
 }
 
 func (w *OCRWindow) saveText() {
-	text := w.resultTextEntry.Text
-	if strings.TrimSpace(text) == "" {
+	devaText := w.resultDevaEntry.Text
+	iastText := w.resultIASTEntry.Text
+	if strings.TrimSpace(devaText) == "" && strings.TrimSpace(iastText) == "" {
 		return
 	}
+
+	// Combine both texts
+	text := fmt.Sprintf("=== Devanagari ===\n%s\n\n=== IAST ===\n%s", devaText, iastText)
 
 	// Generate default filename from source file
 	defaultName := "ocr-result.txt"
