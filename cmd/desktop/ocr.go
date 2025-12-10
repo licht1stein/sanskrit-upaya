@@ -333,6 +333,7 @@ func (w *OCRWindow) showFileBrowser() {
 
 	// Filter to supported image types
 	fd.SetFilter(storage.NewExtensionFileFilter([]string{".png", ".jpg", ".jpeg", ".tiff", ".tif", ".pdf"}))
+	fd.Resize(fyne.NewSize(800, 600))
 	fd.Show()
 }
 
