@@ -316,9 +316,8 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		groupResultsSetting = settings.GetBool("group_results", false)
 	}
 
-	// Dictionary selection state
+	// Dictionary state
 	var allDicts []search.Dict
-	selectedDicts := make(map[string]bool)
 	if db != nil {
 		var err error
 		allDicts, err = db.GetDicts()
@@ -327,42 +326,106 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		}
 	}
 
-	// Load selected dictionaries from settings (or default to all)
+	// Build dict lookup map
+	dictByCode := make(map[string]search.Dict)
+	for _, d := range allDicts {
+		dictByCode[d.Code] = d
+	}
+
+	// Helper to get default dictionary order (alphabetical within language groups)
+	getDefaultDictOrder := func() []string {
+		type langGroup struct {
+			key   string
+			dicts []search.Dict
+		}
+		groupMap := make(map[string]*langGroup)
+		var groupOrder []string
+
+		for _, d := range allDicts {
+			key := d.FromLang + "→" + d.ToLang
+			if _, ok := groupMap[key]; !ok {
+				groupMap[key] = &langGroup{key: key}
+				groupOrder = append(groupOrder, key)
+			}
+			groupMap[key].dicts = append(groupMap[key].dicts, d)
+		}
+
+		// Sort within each group by name
+		for _, group := range groupMap {
+			dicts := group.dicts
+			for i := 0; i < len(dicts)-1; i++ {
+				for j := i + 1; j < len(dicts); j++ {
+					if dicts[i].Name > dicts[j].Name {
+						dicts[i], dicts[j] = dicts[j], dicts[i]
+					}
+				}
+			}
+		}
+
+		// Flatten to ordered list
+		var order []string
+		for _, key := range groupOrder {
+			for _, d := range groupMap[key].dicts {
+				order = append(order, d.Code)
+			}
+		}
+		return order
+	}
+
+	// dictOrder stores ACTIVE dictionaries in display order
+	// This replaces both selected_dicts and dict_order settings
+	var dictOrder []string
 	if settings != nil {
-		if saved := settings.Get("selected_dicts"); saved != "" {
-			// Parse comma-separated list
+		if saved := settings.Get("dict_order"); saved != "" {
 			for _, code := range strings.Split(saved, ",") {
-				if code != "" {
-					selectedDicts[code] = true
+				if code != "" && dictByCode[code].Code != "" {
+					dictOrder = append(dictOrder, code)
 				}
 			}
 		}
 	}
-	// If no saved selection (or empty), select all by default
-	if len(selectedDicts) == 0 {
-		for _, d := range allDicts {
-			selectedDicts[d.Code] = true
+	// If empty, default to all dictionaries in default order
+	if len(dictOrder) == 0 {
+		dictOrder = getDefaultDictOrder()
+	}
+
+	// Helper to save dictionary order
+	saveDictOrder := func() {
+		if settings != nil {
+			settings.Set("dict_order", strings.Join(dictOrder, ","))
 		}
 	}
 
-	// Helper to get selected dict codes as slice
-	getSelectedDictCodes := func() []string {
-		var codes []string
-		for code, selected := range selectedDicts {
-			if selected {
-				codes = append(codes, code)
+	// Helper to sort dict entries by custom order
+	sortByDictOrder := func(entries []DictEntry) {
+		orderMap := make(map[string]int)
+		for i, code := range dictOrder {
+			orderMap[code] = i
+		}
+		for i := 0; i < len(entries)-1; i++ {
+			for j := i + 1; j < len(entries); j++ {
+				posI, okI := orderMap[entries[i].DictCode]
+				posJ, okJ := orderMap[entries[j].DictCode]
+				if !okI {
+					posI = len(dictOrder)
+				}
+				if !okJ {
+					posJ = len(dictOrder)
+				}
+				if posI > posJ {
+					entries[i], entries[j] = entries[j], entries[i]
+				}
 			}
 		}
-		return codes
 	}
 
-	// Helper to save selected dicts
-	saveSelectedDicts := func() {
-		if settings != nil {
-			codes := getSelectedDictCodes()
-			settings.Set("selected_dicts", strings.Join(codes, ","))
-		}
+	// Helper to get active dict codes (same as dictOrder)
+	getSelectedDictCodes := func() []string {
+		return dictOrder
 	}
+
+	// For backwards compatibility - no longer needed but keep the pattern
+	_ = getSelectedDictCodes
 
 	// Create debouncer for search-as-you-type (300ms delay)
 	searchDebouncer := newDebouncer(300 * time.Millisecond)
@@ -836,10 +899,12 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			}
 		}
 
-		// Convert to slice preserving order
+		// Convert to slice preserving order and sort entries by dict order
 		grouped := make([]GroupedResult, 0, len(wordOrder))
 		for _, word := range wordOrder {
-			grouped = append(grouped, *wordMap[word])
+			gr := *wordMap[word]
+			sortByDictOrder(gr.Entries)
+			grouped = append(grouped, gr)
 		}
 		return grouped
 	}
@@ -1323,165 +1388,160 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			return
 		}
 
-		// Language name mapping
-		langNames := map[string]string{
-			"sa": "Sanskrit",
-			"en": "English",
-			"de": "German",
-			"fr": "French",
-			"la": "Latin",
-		}
-		getLangName := func(code string) string {
-			if name, ok := langNames[code]; ok {
-				return name
+		// Working copy of active dictionaries (will be applied on OK)
+		activeOrder := make([]string, len(dictOrder))
+		copy(activeOrder, dictOrder)
+
+		// Build main content container
+		content := container.NewVBox()
+
+		// Containers that will be rebuilt when order changes
+		activeContainer := container.NewVBox()
+		inactiveContainer := container.NewVBox()
+
+		// Rebuild the UI based on current activeOrder
+		var rebuildUI func()
+		rebuildUI = func() {
+			activeContainer.RemoveAll()
+			inactiveContainer.RemoveAll()
+
+			// Build Active section with up/down buttons
+			for i, code := range activeOrder {
+				d := dictByCode[code]
+				idx := i // Capture for closure
+
+				// Dictionary name label
+				nameLabel := widget.NewLabel(d.Name)
+
+				// Up button
+				upBtn := widget.NewButtonWithIcon("", theme.MoveUpIcon(), func() {
+					if idx > 0 {
+						activeOrder[idx], activeOrder[idx-1] = activeOrder[idx-1], activeOrder[idx]
+						rebuildUI()
+					}
+				})
+				if idx == 0 {
+					upBtn.Disable()
+				}
+
+				// Down button
+				downBtn := widget.NewButtonWithIcon("", theme.MoveDownIcon(), func() {
+					if idx < len(activeOrder)-1 {
+						activeOrder[idx], activeOrder[idx+1] = activeOrder[idx+1], activeOrder[idx]
+						rebuildUI()
+					}
+				})
+				if idx == len(activeOrder)-1 {
+					downBtn.Disable()
+				}
+
+				// Remove button (moves to inactive)
+				removeBtn := widget.NewButtonWithIcon("", theme.ContentRemoveIcon(), func() {
+					// Remove from activeOrder
+					newOrder := make([]string, 0, len(activeOrder)-1)
+					for _, c := range activeOrder {
+						if c != code {
+							newOrder = append(newOrder, c)
+						}
+					}
+					activeOrder = newOrder
+					rebuildUI()
+				})
+
+				row := container.NewHBox(upBtn, downBtn, removeBtn, nameLabel)
+				activeContainer.Add(row)
 			}
-			return strings.ToUpper(code)
-		}
 
-		// Group dictionaries by direction (from → to)
-		type DictGroup struct {
-			Key       string // "sa→en"
-			Direction string // "Sanskrit → English"
-			Dicts     []search.Dict
-		}
-		groupMap := make(map[string]*DictGroup)
-		var groupOrder []string
-
-		for _, d := range allDicts {
-			key := d.FromLang + "→" + d.ToLang
-			if _, ok := groupMap[key]; !ok {
-				direction := getLangName(d.FromLang) + " → " + getLangName(d.ToLang)
-				groupMap[key] = &DictGroup{Key: key, Direction: direction}
-				groupOrder = append(groupOrder, key)
+			// Build Inactive section (alphabetically sorted)
+			var inactiveDicts []search.Dict
+			for _, d := range allDicts {
+				isActive := false
+				for _, code := range activeOrder {
+					if code == d.Code {
+						isActive = true
+						break
+					}
+				}
+				if !isActive {
+					inactiveDicts = append(inactiveDicts, d)
+				}
 			}
-			groupMap[key].Dicts = append(groupMap[key].Dicts, d)
-		}
-
-		// Sort dictionaries within each group by name
-		for _, group := range groupMap {
-			dicts := group.Dicts
-			for i := 0; i < len(dicts)-1; i++ {
-				for j := i + 1; j < len(dicts); j++ {
-					if dicts[i].Name > dicts[j].Name {
-						dicts[i], dicts[j] = dicts[j], dicts[i]
+			// Sort inactive by name
+			for i := 0; i < len(inactiveDicts)-1; i++ {
+				for j := i + 1; j < len(inactiveDicts); j++ {
+					if inactiveDicts[i].Name > inactiveDicts[j].Name {
+						inactiveDicts[i], inactiveDicts[j] = inactiveDicts[j], inactiveDicts[i]
 					}
 				}
 			}
-		}
 
-		// Build dialog content
-		content := container.NewVBox()
-
-		// Track all checkboxes for global select all
-		var allCheckboxes []*widget.Check
-		var groupSelectAlls []*widget.Check
-
-		// Helper to count selected
-		countSelected := func() int {
-			count := 0
-			for _, cb := range allCheckboxes {
-				if cb.Checked {
-					count++
-				}
-			}
-			return count
-		}
-
-		// Global select all
-		globalSelectAll := widget.NewCheck("Select All", nil)
-		globalSelectAll.OnChanged = func(checked bool) {
-			for _, cb := range allCheckboxes {
-				cb.SetChecked(checked)
-			}
-			for _, gsa := range groupSelectAlls {
-				gsa.SetChecked(checked)
-			}
-		}
-		content.Add(globalSelectAll)
-		content.Add(widget.NewSeparator())
-
-		// Build each group
-		for _, key := range groupOrder {
-			group := groupMap[key]
-
-			// Group header with select all
-			groupHeader := widget.NewLabel(group.Direction)
-			groupHeader.TextStyle = fyne.TextStyle{Bold: true}
-
-			var groupCheckboxes []*widget.Check
-			groupSelectAll := widget.NewCheck("All", nil)
-
-			// Create checkboxes for each dictionary in group
-			dictContainer := container.NewVBox()
-			for _, d := range group.Dicts {
+			for _, d := range inactiveDicts {
 				dictCode := d.Code
-				dictName := d.Name
-				cb := widget.NewCheck(dictName, func(checked bool) {
-					selectedDicts[dictCode] = checked
+				nameLabel := widget.NewLabel(d.Name)
+
+				// Add button (moves to active)
+				addBtn := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
+					activeOrder = append(activeOrder, dictCode)
+					rebuildUI()
 				})
-				cb.SetChecked(selectedDicts[dictCode])
-				groupCheckboxes = append(groupCheckboxes, cb)
-				allCheckboxes = append(allCheckboxes, cb)
-				dictContainer.Add(cb)
+
+				row := container.NewHBox(addBtn, nameLabel)
+				inactiveContainer.Add(row)
 			}
 
-			// Group select all handler
-			groupSelectAll.OnChanged = func(checked bool) {
-				for _, cb := range groupCheckboxes {
-					cb.SetChecked(checked)
-				}
-			}
-			groupSelectAlls = append(groupSelectAlls, groupSelectAll)
-
-			// Check if all in group are selected
-			allInGroupSelected := true
-			for _, d := range group.Dicts {
-				if !selectedDicts[d.Code] {
-					allInGroupSelected = false
-					break
-				}
-			}
-			groupSelectAll.SetChecked(allInGroupSelected)
-
-			// Group row: header + select all
-			groupRow := container.NewHBox(groupHeader, groupSelectAll)
-			content.Add(groupRow)
-			content.Add(dictContainer)
-			content.Add(widget.NewSeparator())
+			activeContainer.Refresh()
+			inactiveContainer.Refresh()
 		}
 
-		// Check if all are selected globally
-		globalSelectAll.SetChecked(countSelected() == len(allCheckboxes))
+		// Initial build
+		rebuildUI()
+
+		// Instructions
+		instructions := widget.NewLabel("Use arrows to reorder. Active dictionaries are used for search and displayed in this order.")
+		instructions.Wrapping = fyne.TextWrapWord
+
+		// Active header
+		activeHeader := widget.NewLabel("Active Dictionaries")
+		activeHeader.TextStyle = fyne.TextStyle{Bold: true}
+
+		// Inactive header
+		inactiveHeader := widget.NewLabel("Inactive Dictionaries")
+		inactiveHeader.TextStyle = fyne.TextStyle{Bold: true}
+
+		// Reset button
+		resetBtn := widget.NewButton("Reset to Default", func() {
+			activeOrder = getDefaultDictOrder()
+			rebuildUI()
+		})
+
+		// Assemble content
+		content.Add(instructions)
+		content.Add(widget.NewSeparator())
+		content.Add(activeHeader)
+		content.Add(activeContainer)
+		content.Add(widget.NewSeparator())
+		content.Add(inactiveHeader)
+		content.Add(inactiveContainer)
+		content.Add(widget.NewSeparator())
+		content.Add(resetBtn)
 
 		// Wrap in scroll
 		scroll := container.NewVScroll(content)
-		scroll.SetMinSize(fyne.NewSize(400, 400))
+		scroll.SetMinSize(fyne.NewSize(450, 450))
 
 		// Create dialog with Apply/Cancel
-		dlg := dialog.NewCustomConfirm("Select Dictionaries", "Apply", "Cancel", scroll, func(ok bool) {
+		dlg := dialog.NewCustomConfirm("Manage Dictionaries", "Apply", "Cancel", scroll, func(ok bool) {
 			if ok {
-				// Update selection from checkboxes
-				for i, cb := range allCheckboxes {
-					// Find corresponding dict
-					idx := 0
-					for _, key := range groupOrder {
-						group := groupMap[key]
-						for _, d := range group.Dicts {
-							if idx == i {
-								selectedDicts[d.Code] = cb.Checked
-							}
-							idx++
-						}
-					}
-				}
-				saveSelectedDicts()
+				// Apply the new order
+				dictOrder = activeOrder
+				saveDictOrder()
 				// Re-search if there's a query
 				if searchEntry.Text != "" {
 					doSearch(searchEntry.Text)
 				}
 			}
 		}, w)
-		dlg.Resize(fyne.NewSize(500, 500))
+		dlg.Resize(fyne.NewSize(550, 550))
 		dlg.Show()
 	})
 
