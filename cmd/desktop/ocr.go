@@ -59,6 +59,7 @@ type OCRWindow struct {
 	resultText   string
 	confidence   float64
 	errorMessage string
+	closed       bool // Track if window was closed
 
 	// UI containers for each state
 	dropZoneContent   *fyne.Container
@@ -92,6 +93,11 @@ func NewOCRWindow(app fyne.App, mainWindow fyne.Window, searchEntry *widget.Entr
 
 	w.window = app.NewWindow("OCR")
 	w.window.Resize(fyne.NewSize(700, 450))
+
+	// Track when window is closed
+	w.window.SetOnClosed(func() {
+		w.closed = true
+	})
 
 	w.buildUI()
 	return w
@@ -555,8 +561,16 @@ func (w *OCRWindow) saveText() {
 
 // Show displays the OCR window
 func (w *OCRWindow) Show() {
-	w.showDropZone()
+	if w.closed {
+		return // Window was closed, don't try to show it
+	}
 	w.window.Show()
+	w.window.RequestFocus()
+}
+
+// IsClosed returns true if the window was closed
+func (w *OCRWindow) IsClosed() bool {
+	return w.closed
 }
 
 // GetWindow returns the underlying fyne.Window

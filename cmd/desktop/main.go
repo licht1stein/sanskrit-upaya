@@ -1555,7 +1555,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		}
 
 		// Credentials OK - open or focus OCR window
-		if ocrWindow == nil || ocrWindow.GetWindow().Canvas() == nil {
+		if ocrWindow == nil || ocrWindow.IsClosed() {
 			ocrWindow = NewOCRWindow(a, w, searchEntry, doSearch)
 		}
 		ocrWindow.Show()
