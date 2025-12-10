@@ -1561,8 +1561,17 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		ocrWindow.Show()
 	})
 
-	// Toolbar: mode + group checkbox on left, zoom + ocr + settings on right
-	toolbarRight := container.NewHBox(zoomControl, widget.NewSeparator(), ocrBtn, settingsBtn)
+	// Editor button - opens transliteration editor
+	var editorWindow *EditorWindow
+	editorBtn := widget.NewButtonWithIcon("Editor", theme.DocumentCreateIcon(), func() {
+		if editorWindow == nil || editorWindow.IsClosed() {
+			editorWindow = NewEditorWindow(a, w)
+		}
+		editorWindow.Show()
+	})
+
+	// Toolbar: mode + group checkbox on left, zoom + ocr + editor + settings on right
+	toolbarRight := container.NewHBox(zoomControl, widget.NewSeparator(), ocrBtn, editorBtn, settingsBtn)
 	toolbar := container.NewBorder(nil, nil, nil, toolbarRight,
 		container.NewHBox(modeGroup, widget.NewSeparator(), groupCheck, widget.NewSeparator(), dictsBtn),
 	)
