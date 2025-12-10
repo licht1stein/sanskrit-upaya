@@ -1625,7 +1625,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	var editorWindow *EditorWindow
 	editorBtn := widget.NewButtonWithIcon("Editor", theme.DocumentCreateIcon(), func() {
 		if editorWindow == nil || editorWindow.IsClosed() {
-			editorWindow = NewEditorWindow(a, w)
+			editorWindow = NewEditorWindow(a, w, settings)
 		}
 		editorWindow.Show()
 	})

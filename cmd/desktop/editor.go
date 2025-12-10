@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/licht1stein/sanskrit-upaya/pkg/state"
 	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
 )
 
@@ -17,6 +18,7 @@ type EditorWindow struct {
 	window     fyne.Window
 	app        fyne.App
 	mainWindow fyne.Window
+	settings   *state.Store
 
 	// Text entries
 	iastEntry *widget.Entry
@@ -28,10 +30,11 @@ type EditorWindow struct {
 }
 
 // NewEditorWindow creates a new transliteration editor window
-func NewEditorWindow(app fyne.App, mainWindow fyne.Window) *EditorWindow {
+func NewEditorWindow(app fyne.App, mainWindow fyne.Window, settings *state.Store) *EditorWindow {
 	w := &EditorWindow{
 		app:        app,
 		mainWindow: mainWindow,
+		settings:   settings,
 	}
 
 	w.window = app.NewWindow("Transliteration Editor")
@@ -39,9 +42,12 @@ func NewEditorWindow(app fyne.App, mainWindow fyne.Window) *EditorWindow {
 
 	w.window.SetOnClosed(func() {
 		w.closed = true
+		// Save content on close
+		w.saveContent()
 	})
 
 	w.buildUI()
+	w.loadContent()
 	return w
 }
 
@@ -151,4 +157,23 @@ func (w *EditorWindow) IsClosed() bool {
 // GetWindow returns the underlying fyne.Window
 func (w *EditorWindow) GetWindow() fyne.Window {
 	return w.window
+}
+
+// saveContent persists the editor content to settings
+func (w *EditorWindow) saveContent() {
+	if w.settings != nil && w.iastEntry != nil {
+		w.settings.Set("editor_content", w.iastEntry.Text)
+	}
+}
+
+// loadContent restores the editor content from settings
+func (w *EditorWindow) loadContent() {
+	if w.settings != nil {
+		if saved := w.settings.Get("editor_content"); saved != "" {
+			w.updating = true
+			w.iastEntry.SetText(saved)
+			w.devaEntry.SetText(transliterate.IASTToDevanagari(saved))
+			w.updating = false
+		}
+	}
 }
