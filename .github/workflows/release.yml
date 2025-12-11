@@ -136,52 +136,6 @@ jobs:
           name: sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-windows-amd64.exe
           path: sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-windows-amd64.exe
 
-  build-flatpak:
-    needs: [test]
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Install Flatpak tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
-
-      - name: Add Flathub remote
-        run: flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-      - name: Install SDK and runtime
-        run: |
-          flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.freedesktop.Sdk.Extension.golang//24.08
-
-      - name: Get Google Cloud SDK checksum
-        id: gcloud
-        run: |
-          CHECKSUM=$(curl -sL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-517.0.0-linux-x86_64.tar.gz | sha256sum | cut -d' ' -f1)
-          echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
-
-      - name: Update manifest with checksum
-        run: |
-          sed -i 's/sha256: .*/sha256: ${{ steps.gcloud.outputs.CHECKSUM }}/' flatpak/blog.myke.sanskrit-upaya.yml
-
-      - name: Build Flatpak
-        run: |
-          flatpak-builder --user --force-clean --repo=repo build-dir flatpak/blog.myke.sanskrit-upaya.yml
-
-      - name: Export bundle
-        run: |
-          flatpak build-bundle repo sanskrit-upaya.flatpak blog.myke.sanskrit-upaya
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sanskrit-upaya.flatpak
-          path: sanskrit-upaya.flatpak
-
   build-macos:
     needs: [test]
     if: startsWith(github.ref, 'refs/tags/')
