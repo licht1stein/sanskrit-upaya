@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/schema.json
+name: "sanskrit-upaya"
+arch: "${GOARCH}"
+platform: "linux"
+version: "${VERSION}"
+section: "education"
+priority: "optional"
+maintainer: "Mykhaylo Bilyanskyy <myke@myke.blog>"
+description: |
+  Cross-platform Sanskrit dictionary with full-text search.
+  Fast full-text search across 36 digitized Sanskrit dictionaries
+  from the Cologne Digital Sanskrit Dictionaries project.
+vendor: "myke.blog"
+homepage: "https://github.com/licht1stein/sanskrit-upaya"
+license: "MIT"
+contents:
+  - src: ./sanskrit-upaya
+    dst: /usr/bin/sanskrit-upaya
+  - src: ./sanskrit-upaya-mcp
+    dst: /usr/bin/sanskrit-upaya-mcp
+  - src: ./flatpak/blog.myke.sanskrit-upaya.desktop
+    dst: /usr/share/applications/sanskrit-upaya.desktop
+  - src: ./Icon.png
+    dst: /usr/share/icons/hicolor/256x256/apps/sanskrit-upaya.png
+deb:
+  fields:
+    Bugs: https://github.com/licht1stein/sanskrit-upaya/issues
+rpm:
+  group: Applications/Education

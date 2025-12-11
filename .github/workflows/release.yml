@@ -49,7 +49,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           cache: true
 
       - name: Download Go modules
@@ -57,30 +57,47 @@ jobs:
 
       - name: Get version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_NUM=${VERSION#v}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev xorg-dev
+          sudo apt-get install -y libgl1-mesa-dev xorg-dev rpm
 
-      - name: Build desktop app
-        run: |
-          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o sanskrit-upaya-${{ steps.version.outputs.VERSION }}-linux-amd64 ./cmd/desktop
+      - name: Install nFPM
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
 
-      - name: Build MCP server
+      - name: Build binaries
         run: |
-          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-linux-amd64 ./cmd/mcp
+          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o sanskrit-upaya ./cmd/desktop
+          go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o sanskrit-upaya-mcp ./cmd/mcp
+
+      - name: Build .deb package
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION_NUM }}
+          GOARCH: amd64
+        run: |
+          nfpm pkg --packager deb --target sanskrit-upaya_${{ steps.version.outputs.VERSION_NUM }}_amd64.deb
+
+      - name: Build .rpm package
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION_NUM }}
+          GOARCH: amd64
+        run: |
+          nfpm pkg --packager rpm --target sanskrit-upaya-${{ steps.version.outputs.VERSION_NUM }}-1.x86_64.rpm
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-linux-amd64
-          path: sanskrit-upaya-${{ steps.version.outputs.VERSION }}-linux-amd64
+          name: sanskrit-upaya_${{ steps.version.outputs.VERSION_NUM }}_amd64.deb
+          path: sanskrit-upaya_${{ steps.version.outputs.VERSION_NUM }}_amd64.deb
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-linux-amd64
-          path: sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-linux-amd64
+          name: sanskrit-upaya-${{ steps.version.outputs.VERSION_NUM }}-1.x86_64.rpm
+          path: sanskrit-upaya-${{ steps.version.outputs.VERSION_NUM }}-1.x86_64.rpm
 
   build-windows:
     needs: [test]
@@ -91,7 +108,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           cache: true
 
       - name: Download Go modules
@@ -119,6 +136,52 @@ jobs:
           name: sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-windows-amd64.exe
           path: sanskrit-upaya-mcp-${{ steps.version.outputs.VERSION }}-windows-amd64.exe
 
+  build-flatpak:
+    needs: [test]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+
+      - name: Add Flathub remote
+        run: flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Install SDK and runtime
+        run: |
+          flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.freedesktop.Sdk.Extension.golang//24.08
+
+      - name: Get Google Cloud SDK checksum
+        id: gcloud
+        run: |
+          CHECKSUM=$(curl -sL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-517.0.0-linux-x86_64.tar.gz | sha256sum | cut -d' ' -f1)
+          echo "CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
+
+      - name: Update manifest with checksum
+        run: |
+          sed -i 's/sha256: .*/sha256: ${{ steps.gcloud.outputs.CHECKSUM }}/' flatpak/blog.myke.sanskrit-upaya.yml
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --user --force-clean --repo=repo build-dir flatpak/blog.myke.sanskrit-upaya.yml
+
+      - name: Export bundle
+        run: |
+          flatpak build-bundle repo sanskrit-upaya.flatpak blog.myke.sanskrit-upaya
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sanskrit-upaya.flatpak
+          path: sanskrit-upaya.flatpak
+
   build-macos:
     needs: [test]
     if: startsWith(github.ref, 'refs/tags/')
@@ -128,7 +191,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           cache: true
 
       - name: Download Go modules

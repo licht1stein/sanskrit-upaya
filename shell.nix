@@ -23,7 +23,7 @@ pkgs.mkShell {
     noto-fonts
 
     # Google Cloud CLI (for OCR setup)
-    google-cloud-sdk
+    google-cloud-sdk    
   ];
 
   shellHook = ''
