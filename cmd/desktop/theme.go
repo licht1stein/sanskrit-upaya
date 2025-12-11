@@ -21,7 +21,8 @@ func (t *scaledTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant)
 }
 
 func (t *scaledTheme) Font(style fyne.TextStyle) fyne.Resource {
-	return t.base.Font(style)
+	// Use bundled Noto Sans (Latin + Devanagari) for all text
+	return resourceNotoSansMergedRegularTtf
 }
 
 func (t *scaledTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
