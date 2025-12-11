@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Sanskrit Upaya
+Comment=Sanskrit dictionary with full-text search
+Exec=sanskrit-upaya
+Icon=sanskrit-upaya
+Terminal=false
+Type=Application
+Categories=Education;Dictionary;
+Keywords=sanskrit;dictionary;devanagari;

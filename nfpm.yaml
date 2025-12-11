@@ -18,7 +18,7 @@ contents:
     dst: /usr/bin/sanskrit-upaya
   - src: ./sanskrit-upaya-mcp
     dst: /usr/bin/sanskrit-upaya-mcp
-  - src: ./flatpak/blog.myke.sanskrit-upaya.desktop
+  - src: ./sanskrit-upaya.desktop
     dst: /usr/share/applications/sanskrit-upaya.desktop
   - src: ./Icon.png
     dst: /usr/share/icons/hicolor/256x256/apps/sanskrit-upaya.png
