@@ -39,11 +39,13 @@ A fast, cross-platform Sanskrit dictionary desktop application built with Go, Fy
 ## Installation
 
 ### macOS (Homebrew)
+
 The best way to install the app is using [Homebrew](https://brew.sh). You'll need to install it first if you don't have it yet.
 
 ```bash
 brew install --cask licht1stein/tap/sanskrit-upaya
 ```
+
 To update:
 
 ```bash
@@ -53,33 +55,23 @@ brew upgrade sanskrit-upaya
 
 ### Linux
 
-Run directly without installing:
+#### Debian/Ubuntu (.deb)
+
+Download the `.deb` package from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page and install:
 
 ```bash
-nix run github:licht1stein/sanskrit-upaya
+sudo dpkg -i sanskrit-upaya_*_amd64.deb
 ```
 
-Or install to your profile:
+#### Fedora/RHEL (.rpm)
+
+Download the `.rpm` package from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page and install:
 
 ```bash
-nix profile install github:licht1stein/sanskrit-upaya
+sudo rpm -i sanskrit-upaya-*-1.x86_64.rpm
 ```
 
-To update:
-
-```bash
-nix profile upgrade sanskrit-upaya
-```
-
-Add to your flake inputs:
-
-```nix
-{
-  inputs.sanskrit-upaya.url = "github:licht1stein/sanskrit-upaya";
-}
-```
-
-### Windows / Linux (binary)
+### Windows
 
 Download the latest release from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
 
