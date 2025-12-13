@@ -1,0 +1,3322 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sanskrit Upāya</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sanskrit: 'Noto Sans Devanagari', sans-serif;
+      --radius-sm: 3px;
+      --radius-md: 4px;
+      --transition-theme: 0.2s ease;
+    }
+
+    /* Dark theme (default) */
+    [data-theme="dark"] {
+      --bg-base: #181818;
+      --bg-surface: #1f1f1f;
+      --bg-elevated: #262626;
+      --bg-hover: #2a2a2a;
+      --bg-active: #323232;
+      --bg-selection: #264f78;
+      --border-subtle: #252525;
+      --border-default: #2e2e2e;
+      --text-primary: #e1e1e1;
+      --text-secondary: #a0a0a0;
+      --text-muted: #5a5a5a;
+      --text-inverse: #181818;
+      --accent: #3b8eea;
+      --accent-muted: #3b8eea20;
+      --accent-text: #6cb6ff;
+      --success: #5db0a3;
+      --warning: #d19a66;
+    }
+
+    /* Light theme */
+    [data-theme="light"] {
+      --bg-base: #ffffff;
+      --bg-surface: #f5f5f5;
+      --bg-elevated: #e8e8e8;
+      --bg-hover: #ebebeb;
+      --bg-active: #dedede;
+      --bg-selection: #b3d4fc;
+      --border-subtle: #e0e0e0;
+      --border-default: #d0d0d0;
+      --text-primary: #1a1a1a;
+      --text-secondary: #555555;
+      --text-muted: #999999;
+      --text-inverse: #ffffff;
+      --accent: #2563eb;
+      --accent-muted: #2563eb15;
+      --accent-text: #1d4ed8;
+      --success: #059669;
+      --warning: #d97706;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+      background: var(--bg-selection);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-default);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr 22px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Top Navigation Bar */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 4px 6px;
+      gap: 2px;
+    }
+
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 10px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-secondary);
+    }
+
+    .nav-tab.active {
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+    }
+
+    .nav-tab svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .nav-spacer {
+      flex: 1;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      margin-right: 4px;
+    }
+
+    .theme-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .theme-btn:hover {
+      color: var(--text-secondary);
+    }
+
+    .theme-btn.active {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .theme-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Smooth theme transitions */
+    body,
+    .app,
+    .top-nav,
+    .workspace,
+    .panel,
+    .status-bar,
+    .search-input,
+    .segment,
+    .result-item,
+    .article,
+    .editor-view,
+    .editor-panel,
+    .dict-view,
+    .dict-item {
+      transition: background-color var(--transition-theme),
+                  border-color var(--transition-theme),
+                  color var(--transition-theme);
+    }
+
+    /* Main workspace */
+    .workspace {
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      background: var(--bg-base);
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      gap: 16px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-item svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .status-spacer {
+      flex: 1;
+    }
+
+    .status-right {
+      display: flex;
+      gap: 16px;
+    }
+
+    /* Panels */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-left {
+      width: 320px;
+      min-width: 240px;
+      max-width: 50%;
+      background: var(--bg-base);
+    }
+
+    .panel-right {
+      flex: 1;
+      background: var(--bg-surface);
+      min-width: 300px;
+    }
+
+    /* Resizable divider */
+    .divider {
+      width: 1px;
+      background: var(--border-subtle);
+      position: relative;
+      cursor: col-resize;
+      flex-shrink: 0;
+    }
+
+    .divider:hover,
+    .divider.dragging {
+      background: var(--success);
+    }
+
+    .divider-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 32px;
+      background: var(--border-default);
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .divider:hover .divider-handle,
+    .divider.dragging .divider-handle {
+      opacity: 1;
+      background: var(--success);
+    }
+
+    /* Search section */
+    .search-section {
+      padding: 12px;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 60px 8px 32px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-input:focus {
+      border-color: var(--success);
+      background: var(--bg-elevated);
+    }
+
+    .search-kbd {
+      position: absolute;
+      right: 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      color: var(--text-muted);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 8px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--bg-surface);
+      border: none;
+      border-radius: 3px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .search-clear:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .search-clear svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .search-box.has-value .search-kbd {
+      display: none;
+    }
+
+    .search-box.has-value .search-clear {
+      display: flex;
+    }
+
+    /* Modes section - segmented control */
+    .modes-section {
+      padding: 0 12px 12px;
+    }
+
+    .segmented-control {
+      display: flex;
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .segment {
+      flex: 1;
+      padding: 6px 8px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.1s;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .segment:hover {
+      color: var(--text-primary);
+    }
+
+    .segment.active {
+      color: var(--text-primary);
+      background: var(--bg-active);
+    }
+
+    /* Results section */
+    .results-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .results-header {
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .results-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .results-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .results-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .result-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.1s;
+    }
+
+    .result-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .result-item.selected {
+      background: var(--bg-active);
+      border-left-color: var(--success);
+    }
+
+    .result-word {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-deva {
+      font-family: var(--font-sanskrit);
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .result-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .result-dict {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--success);
+      text-transform: uppercase;
+    }
+
+    /* History items */
+    .history-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.1s;
+    }
+
+    .history-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .history-icon {
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .history-query {
+      font-size: 13px;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .history-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Starred items */
+    .starred-icon {
+      width: 12px;
+      height: 12px;
+      color: var(--warning);
+      flex-shrink: 0;
+    }
+
+    .result-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 24px 12px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Content area */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-surface);
+    }
+
+    .content-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 8px;
+    }
+
+    .content-empty svg {
+      width: 32px;
+      height: 32px;
+      opacity: 0.5;
+    }
+
+    .content-empty span {
+      font-size: 12px;
+    }
+
+    /* Article toolbar */
+    .article-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .article-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .article-word-title {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .article-word-title .word {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .article-word-title .deva {
+      font-family: var(--font-sanskrit);
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+
+    .article-dict-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      background: var(--bg-elevated);
+      border-radius: 10px;
+    }
+
+    /* View toggle */
+    .view-toggle {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-sm);
+    }
+
+    .view-toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      border-radius: 2px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .view-toggle-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .view-toggle-btn.active {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .view-toggle-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Stacked view */
+    .stacked-view {
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dict-card-entry {
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .dict-card-entry-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    .dict-card-entry-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dict-card-entry-title .code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      background: transparent;
+      border: 1px solid var(--border-default);
+      border-radius: 3px;
+      color: var(--text-secondary);
+    }
+
+    .dict-card-entry-title .name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .dict-card-entry-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dict-card-entry-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .dict-card-entry-btn:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    .dict-card-entry-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .dict-card-entry-content {
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+
+    .dict-card-entry-content p {
+      margin-bottom: 10px;
+    }
+
+    .dict-card-entry-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .dict-card-entry-content b {
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    .dict-card-entry-content i {
+      color: var(--warning);
+      font-style: normal;
+    }
+
+    /* Compare view (dynamic columns) */
+    .compare-view {
+      display: grid;
+      gap: 1px;
+      background: var(--border-subtle);
+      height: 100%;
+      grid-template-columns: repeat(var(--compare-cols, 2), 1fr);
+    }
+
+    .compare-view.has-add-btn {
+      grid-template-columns: repeat(var(--compare-cols, 2), 1fr) 60px;
+    }
+
+    .compare-column {
+      background: var(--bg-surface);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      animation: compareColumnIn 0.2s ease-out;
+    }
+
+    @keyframes compareColumnIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .compare-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 8px;
+    }
+
+    .compare-column-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .compare-select {
+      padding: 4px 0;
+      padding-right: 18px;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0 center;
+      max-width: 100%;
+      text-overflow: ellipsis;
+    }
+
+    .compare-select:hover {
+      color: var(--text-secondary);
+    }
+
+    .compare-select:focus {
+      outline: none;
+    }
+
+    .compare-column-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .compare-remove-btn {
+      width: 22px;
+      height: 22px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      opacity: 0.6;
+    }
+
+    .compare-remove-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--error);
+      opacity: 1;
+    }
+
+    .compare-remove-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .compare-column-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+    }
+
+    .compare-column-content p {
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .compare-column-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .compare-column-content b {
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    /* Add column button */
+    .compare-add-column {
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 1px dashed var(--border-subtle);
+    }
+
+    .compare-add-column:hover {
+      background: var(--bg-elevated);
+    }
+
+    .compare-add-column:hover .compare-add-icon {
+      color: var(--success);
+    }
+
+    .compare-add-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .compare-add-icon svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    .compare-column-content i {
+      color: var(--warning);
+      font-style: normal;
+    }
+
+    .compare-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .article {
+      max-width: 680px;
+      padding: 24px 32px;
+    }
+
+    .article-header {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .article-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .article-word {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .article-deva {
+      font-family: var(--font-sanskrit);
+      font-size: 20px;
+      color: var(--text-secondary);
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .article-dict {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      background: var(--bg-base);
+      border-radius: var(--radius-sm);
+      color: var(--success);
+    }
+
+    .star-btn,
+    .copy-btn {
+      padding: 4px 10px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.1s;
+    }
+
+    .star-btn:hover,
+    .copy-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .star-btn.starred {
+      background: var(--warning);
+      border-color: var(--warning);
+      color: var(--text-inverse);
+    }
+
+    .copy-btn.copied {
+      background: var(--success);
+      border-color: var(--success);
+      color: var(--text-inverse);
+    }
+
+    .star-btn svg,
+    .copy-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Editor View - Dual Panel Transliteration */
+    .editor-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg-surface);
+    }
+
+    .editor-panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      padding: 16px;
+      gap: 0;
+    }
+
+    .editor-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .editor-panel:first-child {
+      border-radius: var(--radius-md) 0 0 var(--radius-md);
+      border-right: none;
+    }
+
+    .editor-panel:last-child {
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      border-left: none;
+    }
+
+    .editor-panel:focus-within {
+      border-color: var(--border-default);
+    }
+
+    .editor-panel-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .editor-panel-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .editor-panel-icon {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+    }
+
+    .editor-panel.iast .editor-panel-icon {
+      font-family: var(--font-mono);
+    }
+
+    .editor-panel.deva .editor-panel-icon {
+      font-family: var(--font-sanskrit);
+      font-size: 14px;
+    }
+
+    .editor-panel-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .editor-panel-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .editor-panel-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .editor-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .editor-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .editor-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .editor-btn.copied {
+      color: var(--success);
+    }
+
+    .editor-panel-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-textarea {
+      flex: 1;
+      padding: 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.7;
+      resize: none;
+      outline: none;
+    }
+
+    .editor-panel.deva .editor-textarea {
+      font-family: var(--font-sanskrit);
+      font-size: 16px;
+    }
+
+    .editor-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .editor-panel-footer {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .editor-char-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .editor-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Central divider */
+    .editor-divider {
+      width: 40px;
+      background: var(--bg-surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+      cursor: col-resize;
+    }
+
+    .editor-divider::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      bottom: 16px;
+      left: 50%;
+      width: 1px;
+      background: var(--border-subtle);
+      transform: translateX(-50%);
+    }
+
+    .conversion-indicator {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 6px;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      z-index: 1;
+    }
+
+    .conversion-arrow {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: color 0.1s;
+    }
+
+    .conversion-arrow svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .conversion-arrow.active {
+      color: var(--text-primary);
+    }
+
+    .conversion-arrow:last-child {
+      transform: rotate(180deg);
+    }
+
+    .editor-divider:hover .conversion-indicator {
+      border-color: var(--border-default);
+    }
+
+    .editor-divider.dragging .conversion-indicator {
+      border-color: var(--border-default);
+    }
+
+    /* Dictionaries View */
+    .dict-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg-surface);
+    }
+
+    .dict-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .dict-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .dict-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .dict-search-icon {
+      position: absolute;
+      left: 8px;
+      width: 12px;
+      height: 12px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .dict-search-input {
+      width: 200px;
+      padding: 6px 8px 6px 28px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .dict-search-input:focus {
+      border-color: var(--border-default);
+    }
+
+    .dict-search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .dict-stats {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .dict-stats-num {
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .dict-toolbar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dict-action-btn {
+      padding: 5px 10px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .dict-action-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .dict-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    /* Column headers */
+    .dict-column {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .dict-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .dict-column-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .dict-column-title .count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 6px;
+      background: var(--bg-elevated);
+      border-radius: 10px;
+      color: var(--text-muted);
+    }
+
+    .dict-column.active .dict-column-title .count {
+      background: var(--success);
+      color: var(--text-inverse);
+    }
+
+    .dict-column-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 200px;
+    }
+
+    /* Drop zone styling */
+    .dict-column-list.drag-over {
+      background: var(--bg-hover);
+      border-radius: var(--radius-md);
+    }
+
+    .dict-drop-placeholder {
+      height: 60px;
+      border: 2px dashed var(--success);
+      border-radius: var(--radius-md);
+      background: var(--success);
+      opacity: 0.1;
+      transition: all 0.15s;
+    }
+
+    /* Dictionary card */
+    .dict-card {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+    }
+
+    .dict-card:hover {
+      border-color: var(--border-default);
+    }
+
+    .dict-card.dragging {
+      opacity: 0.9;
+      transform: scale(1.02);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      z-index: 100;
+      border-color: var(--success);
+    }
+
+    .dict-card.drag-ghost {
+      opacity: 0.4;
+    }
+
+    /* Drag handle - only in active column */
+    .dict-drag-handle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 0;
+      height: 32px;
+      cursor: grab;
+      color: var(--text-muted);
+      overflow: hidden;
+      transition: width 0.15s, margin 0.15s, color 0.15s;
+      flex-shrink: 0;
+      margin-right: 0;
+    }
+
+    .dict-card:hover .dict-drag-handle {
+      width: 20px;
+      margin-right: 6px;
+    }
+
+    .dict-drag-handle:hover {
+      color: var(--text-primary);
+    }
+
+    .dict-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .dict-drag-handle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Reorder buttons */
+    .dict-reorder-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 0;
+      overflow: hidden;
+      transition: width 0.15s, margin 0.15s;
+      flex-shrink: 0;
+      margin-right: 0;
+    }
+
+    .dict-card:hover .dict-reorder-btns {
+      width: 18px;
+      margin-right: 6px;
+    }
+
+    .dict-reorder-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 14px;
+      background: transparent;
+      border: none;
+      border-radius: 2px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.1s;
+      padding: 0;
+    }
+
+    .dict-reorder-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .dict-reorder-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .dict-reorder-btn svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* Card content */
+    .dict-card-info {
+      flex: 1;
+      min-width: 0;
+      margin-right: 10px;
+    }
+
+    .dict-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .dict-code {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 5px;
+      background: var(--bg-elevated);
+      border-radius: 3px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .dict-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dict-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .dict-entries {
+      font-family: var(--font-mono);
+    }
+
+    /* Add/remove button */
+    .dict-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .dict-action:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    .dict-action.add:hover {
+      border-color: var(--success);
+      background: var(--success);
+      color: var(--text-inverse);
+    }
+
+    .dict-action.remove:hover {
+      border-color: var(--warning);
+      background: var(--warning);
+      color: var(--text-inverse);
+    }
+
+    .dict-action svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Empty state */
+    .dict-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    .dict-empty svg {
+      width: 24px;
+      height: 24px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    .article-body {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-primary);
+    }
+
+    .article-body p {
+      margin-bottom: 12px;
+    }
+
+    .article-body b {
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    .article-body i {
+      color: var(--warning);
+      font-style: normal;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+      <button class="nav-tab active" data-view="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        Search
+      </button>
+      <button class="nav-tab" data-view="starred">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        Starred
+      </button>
+      <button class="nav-tab" data-view="transliterate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        Transliterate
+      </button>
+      <button class="nav-tab" data-view="dictionaries">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        Dictionaries
+      </button>
+      <div class="nav-spacer"></div>
+      <div class="theme-toggle">
+        <button class="theme-btn" data-theme="light" title="Light">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+        <button class="theme-btn active" data-theme="dark" title="Dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+      <button class="nav-tab" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Settings
+      </button>
+    </nav>
+
+    <!-- Main workspace with resizable panels -->
+    <div class="workspace">
+      <!-- Left Panel: Search -->
+      <div class="panel panel-left" id="panelLeft">
+        <!-- Search bar with shortcut -->
+        <div class="search-section">
+          <div class="search-box" id="searchBox">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" class="search-input" placeholder="Search..." id="searchInput" autofocus>
+            <kbd class="search-kbd">⌘K</kbd>
+            <button class="search-clear" id="searchClear" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search modes segmented control -->
+        <div class="modes-section">
+          <div class="segmented-control">
+            <button class="segment active" data-mode="prefix">Prefix</button>
+            <button class="segment" data-mode="exact">Exact</button>
+            <button class="segment" data-mode="fuzzy">Fuzzy</button>
+            <button class="segment" data-mode="reverse">Reverse</button>
+          </div>
+        </div>
+
+        <!-- Results list -->
+        <div class="results-section">
+          <div class="results-header">
+            <span class="results-label">Results</span>
+            <span class="results-count" id="resultsCount">0</span>
+          </div>
+          <div class="results-list" id="resultsList"></div>
+        </div>
+      </div>
+
+      <!-- Resizable divider -->
+      <div class="divider" id="divider">
+        <div class="divider-handle"></div>
+      </div>
+
+      <!-- Right Panel: Content -->
+      <div class="panel panel-right" id="panelRight">
+        <div class="content" id="contentArea">
+          <div class="content-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            <span>Select a word to view its definition</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        36 dictionaries
+      </span>
+      <span class="status-item">1.3M entries</span>
+      <span class="status-spacer"></span>
+      <span class="status-right">
+        <span class="status-item">IAST</span>
+        <span class="status-item">Zoom: 100%</span>
+      </span>
+    </div>
+  </div>
+
+  <script>
+    // Mock Sanskrit dictionary data
+    const mockData = [
+      {
+        id: 1,
+        word_iast: "yoga",
+        word_deva: "योग",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>yoga</b> m. (√1. <i>yuj</i>; ifc. <i>ā</i> or <i>ī</i>) the act of yoking, joining, attaching, harnessing, putting to (of horses).</p>
+<p>A yoke, team, vehicle, conveyance; employment, use, application, performance.</p>
+<p>Equipping or arraying (of an army). Connection, relation. Putting together, arrangement, disposition, regular succession.</p>
+<p><b>In philosophy:</b> The yoga system of philosophy (regarded as the second of the two Sāṃkhya systems, its chief aim being to teach the means by which the human soul may attain complete union with the Supreme Being).</p>
+<p>Abstract contemplation, meditation (esp. self-concentration, abstract meditation and mental abstraction practised as a system).</p>`
+      },
+      {
+        id: 2,
+        word_iast: "yogin",
+        word_deva: "योगिन्",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>yogin</b> m. a follower of the Yoga system, a Yogī or contemplative saint, devotee, ascetic.</p>
+<p>One who has obtained superhuman faculties (eight faculties are usually enumerated).</p>
+<p>A magician, conjurer.</p>`
+      },
+      {
+        id: 3,
+        word_iast: "dharma",
+        word_deva: "धर्म",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>dharma</b> m. (rarely n.) that which is established or firm, steadfast decree, statute, ordinance, law.</p>
+<p>Usage, practice, customary observance or prescribed conduct, duty. Right, justice (often as a synonym of punishment).</p>
+<p>Virtue, morality, religion, religious merit, good works.</p>
+<p>Law or Justice personified (as Indra, Yama, or Viṣṇu, or as a sage).</p>
+<p>The law or doctrine of Buddhism (as distinguished from the saṅgha or monastic order).</p>`
+      },
+      {
+        id: 4,
+        word_iast: "dharmatā",
+        word_deva: "धर्मता",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>dharmatā</b> f. the essential nature of anything, its true essence.</p>
+<p>In Buddhist philosophy, the true nature of all phenomena, the ultimate reality underlying appearances.</p>`
+      },
+      {
+        id: 5,
+        word_iast: "karma",
+        word_deva: "कर्म",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>karma</b> n. (√1. <i>kṛ</i>) act, action, performance, business. Office, special duty, occupation, obligation.</p>
+<p>Any religious act or rite (as sacrifice, oblation &c., esp. as originating in the hope of future recompense).</p>
+<p>Work, labour, activity. Product, result, effect. Fate (as the certain consequence of acts in a previous life).</p>
+<p>The tenth lunar mansion.</p>`
+      },
+      {
+        id: 6,
+        word_iast: "karman",
+        word_deva: "कर्मन्",
+        dict_code: "ap90",
+        dict_name: "Apte Practical",
+        content: `<p><b>karman</b> n. [कृ-मनिन्] Action, work, deed. A religious rite or ceremony. Fate, destiny. Effect, result. The object (in grammar).</p>`
+      },
+      {
+        id: 7,
+        word_iast: "ātman",
+        word_deva: "आत्मन्",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>ātman</b> m. (variously derived; <i>ātman</i>, <i>ātmanā</i>, <i>ātmani</i>) the breath. The soul, principle of life and sensation. The individual soul, self, abstract individual.</p>
+<p>The person or whole body considered as one and opposed to the separate members of the body. The body. (ifc.) The self, himself, herself, itself, themselves.</p>
+<p>Essence, nature, character, peculiarity. The highest personal principle of life, Brahma.</p>`
+      },
+      {
+        id: 8,
+        word_iast: "ātmajña",
+        word_deva: "आत्मज्ञ",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>ātmajña</b> mfn. knowing the supreme spirit or knowing self; m. a sage, one who knows the nature of the soul.</p>`
+      },
+      {
+        id: 9,
+        word_iast: "mokṣa",
+        word_deva: "मोक्ष",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>mokṣa</b> m. (√<i>muc</i>) emancipation, liberation, release from worldly existence or transmigration, final or eternal emancipation.</p>
+<p>Release from bandage. Loosening, untying. Shedding or causing to flow (as of tears, blood &c.).</p>
+<p>The falling or dropping of fruit from a tree.</p>`
+      },
+      {
+        id: 10,
+        word_iast: "nirvāṇa",
+        word_deva: "निर्वाण",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>nirvāṇa</b> n. (or rarely m.) blowing out, extinction (of a light or fire), disappearance, setting (of the sun).</p>
+<p>Extinction of the flame of life, final emancipation from matter and re-union with the Supreme Spirit, absolute extinction or annihilation (= <i>mokṣa</i>; esp. in Buddhism).</p>
+<p>Perfect calm or repose or happiness, highest bliss or beatitude.</p>`
+      },
+      {
+        id: 11,
+        word_iast: "saṃsāra",
+        word_deva: "संसार",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>saṃsāra</b> m. going or wandering through, passing through a succession of states, circuit of mundane existence, course of worldly life.</p>
+<p>Transmigration, metempsychosis, the world, secular life, worldly illusion.</p>`
+      },
+      {
+        id: 12,
+        word_iast: "sūtra",
+        word_deva: "सूत्र",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>sūtra</b> n. (fr. √<i>sīv</i>) a thread, yarn, string, line, cord, wire.</p>
+<p>A measuring line. The sacred thread or cord worn by the first three classes. A girdle.</p>
+<p>A short sentence or aphoristic rule, and any work or manual consisting of strings of such rules hanging together like threads (these Sūtra works form a peculiar branch of Hindu literature).</p>`
+      },
+      {
+        id: 13,
+        word_iast: "mantra",
+        word_deva: "मन्त्र",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>mantra</b> m. (rarely n.) "instrument of thought", speech, sacred text or speech, a prayer or song of praise.</p>
+<p>A Vedic hymn or sacrificial formula. A sacred formula addressed to any individual deity. A mystical verse or magical formula.</p>
+<p>Incantation, charm, spell (esp. in modern times employed by the Śāktas to acquire superhuman powers).</p>
+<p>Consultation, resolution, counsel, advice, plan, design, secret.</p>`
+      },
+      {
+        id: 14,
+        word_iast: "tantra",
+        word_deva: "तन्त्र",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>tantra</b> n. a loom. The warp. The leading or principal or essential part, main point, characteristic feature, model, type, system, framework.</p>
+<p>Doctrine, rule, theory. A class of works teaching magical and mystical formularies (mostly in the form of dialogues between Śiva and Durgā).</p>
+<p>A spell. A chief remedy (in medicine). A means which leads to two or more results, contrivance.</p>`
+      },
+      {
+        id: 15,
+        word_iast: "prajñā",
+        word_deva: "प्रज्ञा",
+        dict_code: "mw",
+        dict_name: "Monier-Williams",
+        content: `<p><b>prajñā</b> f. wisdom, intelligence, knowledge, discrimination, judgement.</p>
+<p>A clever or sensible woman. In Buddhist philosophy, transcendental wisdom or insight.</p>
+<p>One of the six Pāramitās or perfections in Mahāyāna Buddhism.</p>`
+      },
+      // Same words in different dictionaries for tab demo
+      {
+        id: 16,
+        word_iast: "yoga",
+        word_deva: "योग",
+        dict_code: "ap90",
+        dict_name: "Apte Practical",
+        content: `<p><b>yoga</b> [युज्-घञ्] 1 Joining, uniting. 2 Union, junction, combination. 3 Contact, touch, connection.</p>
+<p>4 Application, use, employment. 5 Mode, manner, course, means. 6 Consequence, result.</p>
+<p>7 (In phil.) The Yoga system of philosophy established by Patañjali, teaching the means of attaining union with the Universal Soul.</p>
+<p>8 Deep abstract meditation, concentration of the mind, contemplation.</p>`
+      },
+      {
+        id: 17,
+        word_iast: "yoga",
+        word_deva: "योग",
+        dict_code: "pwg",
+        dict_name: "Böhtlingk-Roth",
+        content: `<p><b>yoga</b> m. (von 1. yuj) 1) das Anschirren, Anspannen. 2) Gefährt, Fuhrwerk. 3) Anwendung, Gebrauch.</p>
+<p>4) Mittel, Kunstgriff, List. 5) Zusammenhang, Beziehung. 6) das Erlangen, Erwerben.</p>
+<p>7) die yoga-Lehre, eines der sechs orthodox-philosophischen Systeme.</p>
+<p>8) die auf diese Lehre gegründete Meditation, tiefes Nachdenken.</p>`
+      },
+      {
+        id: 18,
+        word_iast: "yoga",
+        word_deva: "योग",
+        dict_code: "vcp",
+        dict_name: "Vacaspatyam",
+        content: `<p><b>योग</b> पु० युज--घञ् । १ संयोगे २ युक्तौ ३ उपाये ४ ध्याने ५ समाधौ ६ चित्तवृत्तिनिरोधे।</p>
+<p>७ पातञ्जलदर्शने ८ ज्योतिषोक्ते काले ९ वशीकरणे १० औषधिभेदे।</p>`
+      },
+      {
+        id: 19,
+        word_iast: "dharma",
+        word_deva: "धर्म",
+        dict_code: "ap90",
+        dict_name: "Apte Practical",
+        content: `<p><b>dharma</b> [धृ-मन्] 1 Religion; moral or religious merit, virtue, righteousness, good works.</p>
+<p>2 Duty, prescribed course of conduct. 3 Right, justice, equity, impartiality.</p>
+<p>4 Piety, propriety, decorum. 5 Law, rule, practice. 6 Nature, character, peculiar quality.</p>
+<p>7 An essential attribute. 8 Usage, custom.</p>`
+      },
+      {
+        id: 20,
+        word_iast: "dharma",
+        word_deva: "धर्म",
+        dict_code: "pwg",
+        dict_name: "Böhtlingk-Roth",
+        content: `<p><b>dharma</b> m. (von dhṛ) 1) das Feststehende, Festgesetzte, Satzung, Ordnung, Gesetz. 2) Brauch, Sitte.</p>
+<p>3) Recht, Gerechtigkeit. 4) Tugend, Verdienst, gute Werke. 5) Pflicht, pflichtgemässes Betragen.</p>
+<p>6) Eigenschaft, Eigenthümlichkeit. 7) Religion.</p>`
+      },
+      {
+        id: 21,
+        word_iast: "karma",
+        word_deva: "कर्म",
+        dict_code: "ap90",
+        dict_name: "Apte Practical",
+        content: `<p><b>karma</b> n. [कृ-मन्] 1 Action, deed, work, performance. 2 Business, duty, occupation.</p>
+<p>3 Any religious act or rite. 4 Fate, destiny (as the inevitable consequence of actions done in former births).</p>
+<p>5 Result, effect. 6 (In Gram.) The object (of a verb).</p>`
+      },
+      {
+        id: 22,
+        word_iast: "karma",
+        word_deva: "कर्म",
+        dict_code: "pwg",
+        dict_name: "Böhtlingk-Roth",
+        content: `<p><b>karma</b> n. (von 1. kṛ) 1) That, Handlung, Werk, Geschäft. 2) religiöse Handlung, Ritual.</p>
+<p>3) Beschäftigung, Beruf. 4) das Schicksal (als Folge früherer Thaten).</p>
+<p>5) Wirkung, Erfolg. 6) das Object (Gramm.).</p>`
+      }
+    ];
+
+    // State
+    let selectedId = null;
+    let searchMode = 'prefix';
+    let isSearchFocused = false;
+    let currentView = 'search'; // 'search' or 'starred'
+
+    // Mock dictionaries data
+    const dictionaries = [
+      { code: 'mw', name: 'Monier-Williams', lang: 'sa→en', entries: 180000, enabled: true, desc: 'The most comprehensive Sanskrit-English dictionary' },
+      { code: 'ap90', name: 'Apte Practical', lang: 'sa→en', entries: 60000, enabled: true, desc: 'Practical Sanskrit-English dictionary by V.S. Apte' },
+      { code: 'vcp', name: 'Vacaspatyam', lang: 'sa→sa', entries: 96000, enabled: false, desc: 'Sanskrit encyclopedic dictionary' },
+      { code: 'skd', name: 'Sabda-kalpadruma', lang: 'sa→sa', entries: 65000, enabled: false, desc: 'Sanskrit dictionary with quotations' },
+      { code: 'pwg', name: 'Böhtlingk-Roth', lang: 'sa→de', entries: 150000, enabled: true, desc: 'German Sanskrit dictionary (Petersburg)' },
+      { code: 'gst', name: 'Goldstücker', lang: 'sa→en', entries: 2500, enabled: false, desc: 'Unfinished Sanskrit dictionary' },
+      { code: 'ben', name: 'Benfey', lang: 'sa→en', entries: 22000, enabled: false, desc: 'Sanskrit-English dictionary by Theodor Benfey' },
+      { code: 'yat', name: 'Yates', lang: 'sa→en', entries: 18000, enabled: false, desc: 'Sanskrit dictionary by William Yates' },
+      { code: 'md', name: 'Macdonell', lang: 'sa→en', entries: 12000, enabled: true, desc: 'Practical Sanskrit dictionary' },
+      { code: 'mwe', name: 'MW English-Sanskrit', lang: 'en→sa', entries: 30000, enabled: false, desc: 'English to Sanskrit by Monier-Williams' },
+      { code: 'ae', name: 'Apte English-Sanskrit', lang: 'en→sa', entries: 24000, enabled: false, desc: 'English to Sanskrit by V.S. Apte' },
+      { code: 'bor', name: 'Borooah', lang: 'sa→en', entries: 8000, enabled: false, desc: 'Practical Sanskrit dictionary' },
+    ];
+
+    // Group dictionaries by language
+    const dictByLang = dictionaries.reduce((acc, d) => {
+      if (!acc[d.lang]) acc[d.lang] = [];
+      acc[d.lang].push(d);
+      return acc;
+    }, {});
+
+    // Editor content (IAST side)
+    let editorIAST = 'yoga';
+    let editorDeva = 'योग';
+
+    // Mock starred items (subset of mockData that user "starred")
+    const starredItems = [
+      { ...mockData.find(d => d.word_iast === 'yoga'), starredAt: '2 days ago' },
+      { ...mockData.find(d => d.word_iast === 'dharma'), starredAt: '1 week ago' },
+      { ...mockData.find(d => d.word_iast === 'ātman'), starredAt: '2 weeks ago' },
+      { ...mockData.find(d => d.word_iast === 'mokṣa'), starredAt: '1 month ago' },
+    ].filter(Boolean);
+
+    // Mock search history
+    const searchHistory = [
+      { query: 'yoga', timestamp: '2 min ago' },
+      { query: 'dharma', timestamp: '15 min ago' },
+      { query: 'karma', timestamp: '1 hour ago' },
+      { query: 'ātman', timestamp: '2 hours ago' },
+      { query: 'mokṣa', timestamp: 'Yesterday' },
+      { query: 'nirvāṇa', timestamp: 'Yesterday' },
+      { query: 'prajñā', timestamp: '2 days ago' },
+    ];
+
+    // Elements
+    const searchInput = document.getElementById('searchInput');
+    const searchBox = document.getElementById('searchBox');
+    const searchClear = document.getElementById('searchClear');
+    const resultsList = document.getElementById('resultsList');
+    const resultsCount = document.getElementById('resultsCount');
+    const resultsLabel = document.querySelector('.results-label');
+    const contentArea = document.getElementById('contentArea');
+
+    // Update search box state (show/hide clear button)
+    function updateSearchBoxState() {
+      searchBox.classList.toggle('has-value', searchInput.value.length > 0);
+    }
+
+    // Clear search
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      updateSearchBoxState();
+      searchInput.focus();
+      showHistory();
+    });
+
+    // Show search history
+    function showHistory() {
+      if (currentView !== 'search') return;
+      resultsLabel.textContent = 'Recent';
+      resultsCount.textContent = searchHistory.length;
+      resultsList.innerHTML = searchHistory.map(h => `
+        <div class="history-item" data-query="${h.query}">
+          <svg class="history-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="history-query">${h.query}</span>
+          <span class="history-time">${h.timestamp}</span>
+        </div>
+      `).join('');
+
+      // Click to search from history
+      resultsList.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', () => {
+          searchInput.value = item.dataset.query;
+          updateSearchBoxState();
+          searchInput.focus();
+          search(item.dataset.query);
+          // Auto-select first result
+          setTimeout(() => {
+            const firstResult = resultsList.querySelector('.result-item');
+            if (firstResult) {
+              selectResult(parseInt(firstResult.dataset.id));
+            }
+          }, 50);
+        });
+      });
+    }
+
+    // Switch to search view
+    function switchToSearch() {
+      currentView = 'search';
+      updateActiveNavButton('search');
+      restorePanels();
+      searchInput.placeholder = 'Search...';
+      searchInput.value = '';
+      selectedId = null;
+      showHistory();
+      contentArea.innerHTML = `
+        <div class="content-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <span>Select a word to view its definition</span>
+        </div>
+      `;
+    }
+
+    // Switch to starred view
+    function switchToStarred() {
+      currentView = 'starred';
+      updateActiveNavButton('starred');
+      restorePanels();
+      searchInput.placeholder = 'Filter starred...';
+      searchInput.value = '';
+      selectedId = null;
+      showStarredItems();
+      contentArea.innerHTML = `
+        <div class="content-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span>Select a starred word to view its definition</span>
+        </div>
+      `;
+    }
+
+    // Show starred items (with optional filter)
+    function showStarredItems(filter = '') {
+      let items = starredItems;
+      if (filter.trim()) {
+        const q = filter.toLowerCase();
+        items = starredItems.filter(d =>
+          d.word_iast.toLowerCase().includes(q) ||
+          d.word_deva.includes(q)
+        );
+      }
+
+      resultsLabel.textContent = 'Starred';
+      resultsCount.textContent = items.length;
+
+      if (items.length === 0) {
+        resultsList.innerHTML = `
+          <div class="empty-state">
+            <span>No starred items${filter ? ' matching "' + filter + '"' : ''}</span>
+          </div>
+        `;
+        return;
+      }
+
+      resultsList.innerHTML = items.map(r => `
+        <div class="result-item ${r.id === selectedId ? 'selected' : ''}" data-id="${r.id}">
+          <div class="result-word">
+            <svg class="starred-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            ${r.word_iast}
+            <span class="result-deva">${r.word_deva}</span>
+          </div>
+          <div class="result-meta">
+            <span class="result-dict">${r.dict_code}</span>
+            <span class="result-time">${r.starredAt}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      resultsList.querySelectorAll('.result-item').forEach(item => {
+        item.addEventListener('click', () => selectResult(parseInt(item.dataset.id)));
+      });
+    }
+
+    // Update active nav tab
+    function updateActiveNavButton(view) {
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.view === view);
+      });
+    }
+
+    // Switch to editor view (transliteration)
+    function switchToEditor() {
+      currentView = 'editor';
+      updateActiveNavButton('transliterate');
+
+      // Hide search panel, show full editor
+      const panelLeft = document.getElementById('panelLeft');
+      const divider = document.getElementById('divider');
+      panelLeft.style.display = 'none';
+      divider.style.display = 'none';
+
+      contentArea.innerHTML = `
+        <div class="editor-view">
+          <div class="editor-panels">
+            <div class="editor-panel iast">
+              <div class="editor-panel-header">
+                <div class="editor-panel-label">
+                  <div class="editor-panel-icon">Aa</div>
+                  <div>
+                    <div class="editor-panel-title">IAST</div>
+                    <div class="editor-panel-subtitle">International Alphabet</div>
+                  </div>
+                </div>
+                <div class="editor-panel-actions">
+                  <button class="editor-btn" onclick="copyIAST(this)" title="Copy">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                  </button>
+                  <button class="editor-btn" onclick="clearIAST()" title="Clear">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18"/>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="editor-panel-content">
+                <textarea class="editor-textarea" id="editorIAST" placeholder="Type romanized Sanskrit here...">${editorIAST}</textarea>
+              </div>
+              <div class="editor-panel-footer">
+                <span class="editor-char-count" id="iastCount">${editorIAST.length} chars</span>
+                <span class="editor-hint">ā ī ū ṛ ṝ ḷ ṃ ḥ ñ ṅ ś ṣ ṭ ḍ ṇ</span>
+              </div>
+            </div>
+            <div class="editor-divider" id="editorDivider">
+              <div class="conversion-indicator">
+                <div class="conversion-arrow" id="arrowRight">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </div>
+                <div class="conversion-arrow" id="arrowLeft">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div class="editor-panel deva">
+              <div class="editor-panel-header">
+                <div class="editor-panel-label">
+                  <div class="editor-panel-icon">अ</div>
+                  <div>
+                    <div class="editor-panel-title">Devanagari</div>
+                    <div class="editor-panel-subtitle">देवनागरी</div>
+                  </div>
+                </div>
+                <div class="editor-panel-actions">
+                  <button class="editor-btn" onclick="copyDeva(this)" title="Copy">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                  </button>
+                  <button class="editor-btn" onclick="clearDeva()" title="Clear">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18"/>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="editor-panel-content">
+                <textarea class="editor-textarea" id="editorDeva" placeholder="देवनागरी में टाइप करें...">${editorDeva}</textarea>
+              </div>
+              <div class="editor-panel-footer">
+                <span class="editor-char-count" id="devaCount">${editorDeva.length} chars</span>
+                <span class="editor-hint">Bidirectional conversion</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Set up transliteration listeners
+      const iastTextarea = document.getElementById('editorIAST');
+      const devaTextarea = document.getElementById('editorDeva');
+
+      iastTextarea.addEventListener('input', () => {
+        editorIAST = iastTextarea.value;
+        editorDeva = iastToDevanagari(iastTextarea.value);
+        devaTextarea.value = editorDeva;
+        updateEditorCounts();
+        setConversionDirection('right');
+      });
+
+      devaTextarea.addEventListener('input', () => {
+        editorDeva = devaTextarea.value;
+        editorIAST = devanagariToIAST(devaTextarea.value);
+        iastTextarea.value = editorIAST;
+        updateEditorCounts();
+        setConversionDirection('left');
+      });
+
+      // Set up resizable divider
+      setupEditorDivider();
+    }
+
+    // Simple IAST to Devanagari transliteration
+    function iastToDevanagari(text) {
+      const map = {
+        'aa': 'आ', 'ii': 'ई', 'uu': 'ऊ', 'ai': 'ऐ', 'au': 'औ',
+        'kh': 'ख', 'gh': 'घ', 'ch': 'छ', 'jh': 'झ', 'th': 'थ', 'dh': 'ध',
+        'ph': 'फ', 'bh': 'भ', 'sh': 'श', 'ṣ': 'ष', 'ś': 'श',
+        'ṭ': 'ट', 'ṭh': 'ठ', 'ḍ': 'ड', 'ḍh': 'ढ', 'ṇ': 'ण',
+        'ñ': 'ञ', 'ṅ': 'ङ', 'ṃ': 'ं', 'ḥ': 'ः',
+        'ā': 'ा', 'ī': 'ी', 'ū': 'ू', 'ṛ': 'ृ', 'ṝ': 'ॄ', 'ḷ': 'ॢ',
+        'a': 'अ', 'i': 'इ', 'u': 'उ', 'e': 'ए', 'o': 'ओ',
+        'k': 'क', 'g': 'ग', 'c': 'च', 'j': 'ज', 't': 'त', 'd': 'द',
+        'n': 'न', 'p': 'प', 'b': 'ब', 'm': 'म',
+        'y': 'य', 'r': 'र', 'l': 'ल', 'v': 'व', 's': 'स', 'h': 'ह',
+        ' ': ' ', '\n': '\n'
+      };
+
+      // Simplified transliteration (real implementation would be more complex)
+      let result = '';
+      let i = 0;
+      while (i < text.length) {
+        // Check for two-character combinations first
+        if (i + 1 < text.length) {
+          const two = text.substr(i, 2).toLowerCase();
+          if (map[two]) {
+            result += map[two];
+            i += 2;
+            continue;
+          }
+        }
+        // Single character
+        const one = text[i].toLowerCase();
+        if (map[one]) {
+          result += map[one];
+        } else {
+          result += text[i];
+        }
+        i++;
+      }
+      return result;
+    }
+
+    // Simple Devanagari to IAST transliteration
+    function devanagariToIAST(text) {
+      const map = {
+        'आ': 'ā', 'ई': 'ī', 'ऊ': 'ū', 'ऐ': 'ai', 'औ': 'au',
+        'अ': 'a', 'इ': 'i', 'उ': 'u', 'ए': 'e', 'ओ': 'o',
+        'क': 'k', 'ख': 'kh', 'ग': 'g', 'घ': 'gh', 'ङ': 'ṅ',
+        'च': 'c', 'छ': 'ch', 'ज': 'j', 'झ': 'jh', 'ञ': 'ñ',
+        'ट': 'ṭ', 'ठ': 'ṭh', 'ड': 'ḍ', 'ढ': 'ḍh', 'ण': 'ṇ',
+        'त': 't', 'थ': 'th', 'द': 'd', 'ध': 'dh', 'न': 'n',
+        'प': 'p', 'फ': 'ph', 'ब': 'b', 'भ': 'bh', 'म': 'm',
+        'य': 'y', 'र': 'r', 'ल': 'l', 'व': 'v',
+        'श': 'ś', 'ष': 'ṣ', 'स': 's', 'ह': 'h',
+        'ा': 'ā', 'ी': 'ī', 'ू': 'ū', 'ृ': 'ṛ', 'े': 'e', 'ो': 'o',
+        'ं': 'ṃ', 'ः': 'ḥ', '।': '.', '॥': '..',
+        ' ': ' ', '\n': '\n'
+      };
+
+      let result = '';
+      for (const char of text) {
+        if (map[char]) {
+          result += map[char];
+        } else {
+          result += char;
+        }
+      }
+      return result;
+    }
+
+    // Editor helper functions
+    function updateEditorCounts() {
+      const iastCount = document.getElementById('iastCount');
+      const devaCount = document.getElementById('devaCount');
+      if (iastCount) iastCount.textContent = editorIAST.length + ' chars';
+      if (devaCount) devaCount.textContent = editorDeva.length + ' chars';
+    }
+
+    function setConversionDirection(direction) {
+      const arrowRight = document.getElementById('arrowRight');
+      const arrowLeft = document.getElementById('arrowLeft');
+      if (arrowRight && arrowLeft) {
+        arrowRight.classList.toggle('active', direction === 'right');
+        arrowLeft.classList.toggle('active', direction === 'left');
+      }
+    }
+
+    function copyIAST(btn) {
+      const textarea = document.getElementById('editorIAST');
+      navigator.clipboard.writeText(textarea.value);
+      if (btn) {
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 1000);
+      }
+    }
+
+    function clearIAST() {
+      const textarea = document.getElementById('editorIAST');
+      textarea.value = '';
+      editorIAST = '';
+      document.getElementById('editorDeva').value = '';
+      editorDeva = '';
+      updateEditorCounts();
+    }
+
+    function copyDeva(btn) {
+      const textarea = document.getElementById('editorDeva');
+      navigator.clipboard.writeText(textarea.value);
+      if (btn) {
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 1000);
+      }
+    }
+
+    function clearDeva() {
+      const textarea = document.getElementById('editorDeva');
+      textarea.value = '';
+      editorDeva = '';
+      document.getElementById('editorIAST').value = '';
+      editorIAST = '';
+      updateEditorCounts();
+    }
+
+    function setupEditorDivider() {
+      const editorDivider = document.getElementById('editorDivider');
+      const editorPanels = document.querySelector('.editor-panels');
+      let isDraggingEditor = false;
+
+      editorDivider.addEventListener('mousedown', () => {
+        isDraggingEditor = true;
+        editorDivider.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDraggingEditor) return;
+        const rect = editorPanels.getBoundingClientRect();
+        const percentage = ((e.clientX - rect.left) / rect.width) * 100;
+        if (percentage > 20 && percentage < 80) {
+          const panels = editorPanels.querySelectorAll('.editor-panel');
+          panels[0].style.flex = percentage / 100;
+          panels[1].style.flex = (100 - percentage) / 100;
+        }
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDraggingEditor) {
+          isDraggingEditor = false;
+          editorDivider.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    // Active dictionaries order (codes in priority order)
+    let activeDictOrder = dictionaries.filter(d => d.enabled).map(d => d.code);
+
+    // Switch to dictionaries view
+    function switchToDictionaries() {
+      currentView = 'dictionaries';
+      updateActiveNavButton('dictionaries');
+
+      // Hide search panel, show full dictionaries
+      const panelLeft = document.getElementById('panelLeft');
+      const divider = document.getElementById('divider');
+      panelLeft.style.display = 'none';
+      divider.style.display = 'none';
+
+      renderDictionaries();
+    }
+
+    // Render the dictionaries view
+    function renderDictionaries() {
+      const activeDicts = activeDictOrder.map(code => dictionaries.find(d => d.code === code)).filter(Boolean);
+      const inactiveDicts = dictionaries.filter(d => !activeDictOrder.includes(d.code));
+      const totalEntries = activeDicts.reduce((sum, d) => sum + d.entries, 0);
+
+      const html = `
+        <div class="dict-view">
+          <div class="dict-toolbar">
+            <div class="dict-toolbar-left">
+              <div class="dict-search">
+                <svg class="dict-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" class="dict-search-input" placeholder="Filter dictionaries..." id="dictSearchInput">
+              </div>
+              <div class="dict-stats">
+                <span class="dict-stats-num">${activeDicts.length}</span>
+                <span>of ${dictionaries.length} active</span>
+                <span>·</span>
+                <span class="dict-stats-num">${(totalEntries / 1000).toFixed(0)}k</span>
+                <span>entries</span>
+              </div>
+            </div>
+          </div>
+          <div class="dict-content">
+            <div class="dict-column active">
+              <div class="dict-column-header">
+                <div class="dict-column-title">
+                  Active
+                  <span class="count">${activeDicts.length}</span>
+                </div>
+              </div>
+              <div class="dict-column-list" id="activeList">
+                ${activeDicts.length === 0 ? `
+                  <div class="dict-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Click dictionaries to activate
+                  </div>
+                ` : activeDicts.map((dict, index) => renderActiveCard(dict, index, activeDicts.length)).join('')}
+              </div>
+            </div>
+            <div class="dict-column inactive">
+              <div class="dict-column-header">
+                <div class="dict-column-title">
+                  Available
+                  <span class="count">${inactiveDicts.length}</span>
+                </div>
+              </div>
+              <div class="dict-column-list" id="inactiveList">
+                ${inactiveDicts.length === 0 ? `
+                  <div class="dict-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M5 13l4 4L19 7"/>
+                    </svg>
+                    All dictionaries active
+                  </div>
+                ` : inactiveDicts.map(dict => renderInactiveCard(dict)).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      contentArea.innerHTML = html;
+
+      setupDictInteractions();
+    }
+
+    // Render active dictionary card with drag handle and reorder buttons
+    function renderActiveCard(dict, index, total) {
+      return `
+        <div class="dict-card" data-code="${dict.code}" draggable="true">
+          <div class="dict-drag-handle" title="Drag to reorder">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="9" cy="6" r="1.5"/>
+              <circle cx="15" cy="6" r="1.5"/>
+              <circle cx="9" cy="12" r="1.5"/>
+              <circle cx="15" cy="12" r="1.5"/>
+              <circle cx="9" cy="18" r="1.5"/>
+              <circle cx="15" cy="18" r="1.5"/>
+            </svg>
+          </div>
+          <div class="dict-reorder-btns">
+            <button class="dict-reorder-btn" onclick="moveDictUp('${dict.code}')" ${index === 0 ? 'disabled' : ''} title="Move up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 15l-6-6-6 6"/>
+              </svg>
+            </button>
+            <button class="dict-reorder-btn" onclick="moveDictDown('${dict.code}')" ${index === total - 1 ? 'disabled' : ''} title="Move down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dict-card-info">
+            <div class="dict-card-header">
+              <span class="dict-code">${dict.code.toUpperCase()}</span>
+              <span class="dict-name">${dict.name}</span>
+            </div>
+            <div class="dict-meta">
+              <span class="dict-entries">${(dict.entries / 1000).toFixed(0)}k entries</span>
+              <span>·</span>
+              <span>${dict.lang}</span>
+            </div>
+          </div>
+          <button class="dict-action remove" onclick="deactivateDict('${dict.code}')" title="Remove from active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    // Render inactive dictionary card
+    function renderInactiveCard(dict) {
+      return `
+        <div class="dict-card" data-code="${dict.code}">
+          <div class="dict-card-info">
+            <div class="dict-card-header">
+              <span class="dict-code">${dict.code.toUpperCase()}</span>
+              <span class="dict-name">${dict.name}</span>
+            </div>
+            <div class="dict-meta">
+              <span class="dict-entries">${(dict.entries / 1000).toFixed(0)}k entries</span>
+              <span>·</span>
+              <span>${dict.lang}</span>
+            </div>
+          </div>
+          <button class="dict-action add" onclick="activateDict('${dict.code}')" title="Add to active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    // Setup drag and drop interactions
+    function setupDictInteractions() {
+      const activeList = document.getElementById('activeList');
+      const inactiveList = document.getElementById('inactiveList');
+      let draggedCard = null;
+      let draggedCode = null;
+      let placeholder = null;
+
+      // Drag start
+      activeList.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.dict-card');
+        if (!card) return;
+
+        draggedCard = card;
+        draggedCode = card.dataset.code;
+
+        // Delay adding class for smooth pickup
+        requestAnimationFrame(() => {
+          card.classList.add('dragging');
+        });
+
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', draggedCode);
+      });
+
+      // Drag end
+      document.addEventListener('dragend', (e) => {
+        if (draggedCard) {
+          draggedCard.classList.remove('dragging');
+          draggedCard = null;
+          draggedCode = null;
+        }
+        if (placeholder && placeholder.parentNode) {
+          placeholder.parentNode.removeChild(placeholder);
+          placeholder = null;
+        }
+        activeList.classList.remove('drag-over');
+      });
+
+      // Drag over active list
+      activeList.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const afterElement = getDragAfterElement(activeList, e.clientY);
+
+        if (!placeholder) {
+          placeholder = document.createElement('div');
+          placeholder.className = 'dict-drop-placeholder';
+        }
+
+        if (afterElement) {
+          activeList.insertBefore(placeholder, afterElement);
+        } else {
+          activeList.appendChild(placeholder);
+        }
+      });
+
+      // Drop on active list
+      activeList.addEventListener('drop', (e) => {
+        e.preventDefault();
+
+        if (!draggedCode) return;
+
+        const afterElement = getDragAfterElement(activeList, e.clientY);
+        const afterCode = afterElement ? afterElement.dataset.code : null;
+
+        // Reorder in array
+        const currentIndex = activeDictOrder.indexOf(draggedCode);
+        if (currentIndex > -1) {
+          activeDictOrder.splice(currentIndex, 1);
+        }
+
+        if (afterCode) {
+          const newIndex = activeDictOrder.indexOf(afterCode);
+          activeDictOrder.splice(newIndex, 0, draggedCode);
+        } else {
+          activeDictOrder.push(draggedCode);
+        }
+
+        // Re-render with animation
+        renderDictionaries();
+      });
+
+      // Filter input
+      const dictSearchInput = document.getElementById('dictSearchInput');
+      if (dictSearchInput) {
+        dictSearchInput.addEventListener('input', (e) => {
+          const filter = e.target.value.toLowerCase();
+          document.querySelectorAll('.dict-card').forEach(card => {
+            const name = card.querySelector('.dict-name').textContent.toLowerCase();
+            const code = card.dataset.code.toLowerCase();
+            const matches = name.includes(filter) || code.includes(filter);
+            card.style.display = matches ? '' : 'none';
+          });
+        });
+      }
+    }
+
+    // Get element to insert after during drag
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.dict-card:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Activate dictionary
+    function activateDict(code) {
+      if (!activeDictOrder.includes(code)) {
+        activeDictOrder.push(code);
+        const dict = dictionaries.find(d => d.code === code);
+        if (dict) dict.enabled = true;
+        renderDictionaries();
+      }
+    }
+
+    // Deactivate dictionary
+    function deactivateDict(code) {
+      const index = activeDictOrder.indexOf(code);
+      if (index > -1) {
+        activeDictOrder.splice(index, 1);
+        const dict = dictionaries.find(d => d.code === code);
+        if (dict) dict.enabled = false;
+        renderDictionaries();
+      }
+    }
+
+    // Move dictionary up in order
+    function moveDictUp(code) {
+      const index = activeDictOrder.indexOf(code);
+      if (index > 0) {
+        [activeDictOrder[index - 1], activeDictOrder[index]] = [activeDictOrder[index], activeDictOrder[index - 1]];
+        renderDictionaries();
+      }
+    }
+
+    // Move dictionary down in order
+    function moveDictDown(code) {
+      const index = activeDictOrder.indexOf(code);
+      if (index < activeDictOrder.length - 1) {
+        [activeDictOrder[index], activeDictOrder[index + 1]] = [activeDictOrder[index + 1], activeDictOrder[index]];
+        renderDictionaries();
+      }
+    }
+
+    // Restore panels when switching back to search/starred
+    function restorePanels() {
+      const panelLeft = document.getElementById('panelLeft');
+      const divider = document.getElementById('divider');
+      panelLeft.style.display = '';
+      divider.style.display = '';
+    }
+
+    // Search function
+    function search(query) {
+      // Handle starred view filtering
+      if (currentView === 'starred') {
+        showStarredItems(query);
+        return;
+      }
+
+      resultsLabel.textContent = 'Results';
+      if (!query.trim()) {
+        resultsCount.textContent = '0';
+        resultsList.innerHTML = '';
+        if (!isSearchFocused) {
+          showHistory();
+        }
+        return;
+      }
+
+      const q = query.toLowerCase();
+      let results;
+
+      switch (searchMode) {
+        case 'exact':
+          results = mockData.filter(d => d.word_iast.toLowerCase() === q);
+          break;
+        case 'prefix':
+          results = mockData.filter(d => d.word_iast.toLowerCase().startsWith(q));
+          break;
+        case 'fuzzy':
+          results = mockData.filter(d => d.word_iast.toLowerCase().includes(q));
+          break;
+        case 'reverse':
+          results = mockData.filter(d => d.content.toLowerCase().includes(q));
+          break;
+        default:
+          results = mockData.filter(d => d.word_iast.toLowerCase().startsWith(q));
+      }
+
+      resultsCount.textContent = results.length;
+      renderResults(results);
+    }
+
+    // Render results list
+    function renderResults(results) {
+      resultsList.innerHTML = results.map(r => `
+        <div class="result-item ${r.id === selectedId ? 'selected' : ''}" data-id="${r.id}">
+          <div class="result-word">
+            ${r.word_iast}
+            <span class="result-deva">${r.word_deva}</span>
+          </div>
+          <div class="result-meta">
+            <span class="result-dict">${r.dict_code}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      resultsList.querySelectorAll('.result-item').forEach(item => {
+        item.addEventListener('click', () => selectResult(parseInt(item.dataset.id)));
+      });
+    }
+
+    // Current word's articles across dictionaries
+    let currentWordArticles = [];
+    let currentArticleIndex = 0;
+    let articleViewMode = 'stacked'; // 'stacked' or 'compare'
+    let compareColumns = [0, 1]; // Array of dictionary indices for compare view
+    const MAX_COMPARE_COLUMNS = 4;
+    const MIN_COMPARE_COLUMNS = 2;
+
+    // Select and display result
+    function selectResult(id) {
+      selectedId = id;
+      const item = mockData.find(d => d.id === id);
+
+      // Update sidebar selection
+      resultsList.querySelectorAll('.result-item').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.dataset.id) === id);
+      });
+
+      // Find all articles for the same word across all dictionaries
+      if (item) {
+        currentWordArticles = mockData.filter(d =>
+          d.word_iast.toLowerCase() === item.word_iast.toLowerCase()
+        );
+        currentArticleIndex = currentWordArticles.findIndex(d => d.id === id);
+
+        // Reset compare columns to first 2 dictionaries
+        compareColumns = [0];
+        if (currentWordArticles.length > 1) {
+          compareColumns.push(1);
+        }
+
+        displayArticleView();
+      }
+    }
+
+    // Display article based on current view mode
+    function displayArticleView() {
+      if (currentWordArticles.length === 0) return;
+
+      const item = currentWordArticles[0];
+      const hasMultiple = currentWordArticles.length > 1;
+
+      // Toolbar with word title and view toggle
+      const toolbarHtml = `
+        <div class="article-toolbar">
+          <div class="article-toolbar-left">
+            <div class="article-word-title">
+              <span class="word">${item.word_iast}</span>
+              <span class="deva">${item.word_deva}</span>
+            </div>
+            <span class="article-dict-count">${currentWordArticles.length} ${currentWordArticles.length === 1 ? 'dictionary' : 'dictionaries'}</span>
+          </div>
+          ${hasMultiple ? `
+            <div class="view-toggle">
+              <button class="view-toggle-btn ${articleViewMode === 'stacked' ? 'active' : ''}"
+                      onclick="setArticleViewMode('stacked')" title="Stacked view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="6" rx="1"/>
+                  <rect x="3" y="11" width="18" height="6" rx="1"/>
+                </svg>
+              </button>
+              <button class="view-toggle-btn ${articleViewMode === 'compare' ? 'active' : ''}"
+                      onclick="setArticleViewMode('compare')" title="Compare view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="8" height="18" rx="1"/>
+                  <rect x="13" y="3" width="8" height="18" rx="1"/>
+                </svg>
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      // Content based on view mode
+      let contentHtml = '';
+
+      if (articleViewMode === 'stacked' || !hasMultiple) {
+        contentHtml = renderStackedView();
+      } else {
+        contentHtml = renderCompareView();
+      }
+
+      contentArea.innerHTML = toolbarHtml + contentHtml;
+    }
+
+    // Render stacked cards view
+    function renderStackedView() {
+      return `
+        <div class="stacked-view">
+          ${currentWordArticles.map((article, index) => `
+            <div class="dict-card-entry">
+              <div class="dict-card-entry-header">
+                <div class="dict-card-entry-title">
+                  <span class="code">${article.dict_code.toUpperCase()}</span>
+                  <span class="name">${article.dict_name}</span>
+                </div>
+                <div class="dict-card-entry-actions">
+                  <button class="dict-card-entry-btn" onclick="copyEntryContent(${index})">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                  </button>
+                  <button class="dict-card-entry-btn" onclick="starEntry(${index})">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    Star
+                  </button>
+                </div>
+              </div>
+              <div class="dict-card-entry-content">
+                ${article.content}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Render dynamic compare view (2-4 columns)
+    function renderCompareView() {
+      const canAddColumn = compareColumns.length < MAX_COMPARE_COLUMNS &&
+                           compareColumns.length < currentWordArticles.length;
+      const totalCols = canAddColumn ? compareColumns.length + 1 : compareColumns.length;
+
+      const columnsHtml = compareColumns.map((articleIndex, colIndex) => {
+        const article = currentWordArticles[articleIndex];
+        const canRemove = compareColumns.length > MIN_COMPARE_COLUMNS;
+
+        return `
+          <div class="compare-column">
+            <div class="compare-column-header">
+              <div class="compare-column-header-left">
+                <select class="compare-select" onchange="setCompareColumn(${colIndex}, this.value)">
+                  ${currentWordArticles.map((a, idx) =>
+                    `<option value="${idx}" ${idx === articleIndex ? 'selected' : ''}>${a.dict_name}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div class="compare-column-actions">
+                <button class="dict-card-entry-btn" onclick="copyEntryContent(${articleIndex})" title="Copy">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+                <button class="dict-card-entry-btn" onclick="starEntry(${articleIndex})" title="Star">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </button>
+                ${canRemove ? `
+                  <button class="compare-remove-btn" onclick="removeCompareColumn(${colIndex})" title="Remove column">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div class="compare-column-content">
+              ${article ? article.content : '<div class="compare-empty">Select a dictionary</div>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const addColumnHtml = canAddColumn ? `
+        <div class="compare-add-column" onclick="addCompareColumn()" title="Add dictionary column">
+          <div class="compare-add-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </div>
+        </div>
+      ` : '';
+
+      return `
+        <div class="compare-view${canAddColumn ? ' has-add-btn' : ''}" style="--compare-cols: ${compareColumns.length}">
+          ${columnsHtml}
+          ${addColumnHtml}
+        </div>
+      `;
+    }
+
+    // Set article view mode
+    function setArticleViewMode(mode) {
+      articleViewMode = mode;
+      displayArticleView();
+    }
+
+    // Set compare column dictionary
+    function setCompareColumn(colIndex, articleIndex) {
+      compareColumns[colIndex] = parseInt(articleIndex);
+      displayArticleView();
+    }
+
+    // Add a new compare column
+    function addCompareColumn() {
+      if (compareColumns.length >= MAX_COMPARE_COLUMNS) return;
+      if (compareColumns.length >= currentWordArticles.length) return;
+
+      // Find first dictionary not already shown
+      const usedIndices = new Set(compareColumns);
+      for (let i = 0; i < currentWordArticles.length; i++) {
+        if (!usedIndices.has(i)) {
+          compareColumns.push(i);
+          break;
+        }
+      }
+      displayArticleView();
+    }
+
+    // Remove a compare column
+    function removeCompareColumn(colIndex) {
+      if (compareColumns.length <= MIN_COMPARE_COLUMNS) return;
+      compareColumns.splice(colIndex, 1);
+      displayArticleView();
+    }
+
+    // Copy entry content
+    function copyEntryContent(index) {
+      const article = currentWordArticles[index];
+      if (article) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = article.content;
+        const text = tempDiv.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          // Find and update the button
+          const buttons = document.querySelectorAll('.dict-card-entry-btn');
+          // Visual feedback could be added here
+        });
+      }
+    }
+
+    // Star entry
+    function starEntry(index) {
+      const article = currentWordArticles[index];
+      if (article) {
+        // Toggle star logic (for demo just show alert)
+        console.log('Starred:', article.word_iast, 'from', article.dict_name);
+      }
+    }
+
+    // Toggle star
+    function toggleStar(btn) {
+      btn.classList.toggle('starred');
+      const svg = btn.querySelector('svg');
+      if (btn.classList.contains('starred')) {
+        svg.setAttribute('fill', 'currentColor');
+        btn.innerHTML = svg.outerHTML + ' Starred';
+      } else {
+        svg.setAttribute('fill', 'none');
+        btn.innerHTML = svg.outerHTML + ' Star';
+      }
+    }
+
+    // Copy article content
+    function copyArticle(btn) {
+      const articleBody = document.querySelector('.article-body');
+      if (articleBody) {
+        const text = articleBody.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.classList.add('copied');
+          const svg = btn.querySelector('svg');
+          btn.innerHTML = svg.outerHTML + ' Copied!';
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = svg.outerHTML + ' Copy';
+          }, 1500);
+        });
+      }
+    }
+
+    // Search mode buttons (segmented control)
+    document.querySelectorAll('.segment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.segment').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        searchMode = btn.dataset.mode;
+        search(searchInput.value);
+      });
+    });
+
+    // Search input handler with debounce
+    let debounceTimer;
+    searchInput.addEventListener('input', (e) => {
+      updateSearchBoxState();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => search(e.target.value), 150);
+    });
+
+    // Focus/blur handlers
+    searchInput.addEventListener('focus', () => {
+      isSearchFocused = true;
+      // Show history when focusing on empty search
+      if (!searchInput.value.trim()) {
+        showHistory();
+      }
+    });
+
+    searchInput.addEventListener('blur', () => {
+      isSearchFocused = false;
+      // Small delay to allow clicking on results/history
+      setTimeout(() => {
+        if (!searchInput.value.trim() && !isSearchFocused) {
+          showHistory();
+        }
+      }, 150);
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = resultsList.querySelectorAll('.result-item');
+        if (items.length === 0) return;
+
+        const currentIndex = Array.from(items).findIndex(el => parseInt(el.dataset.id) === selectedId);
+        let newIndex;
+
+        if (e.key === 'ArrowDown') {
+          newIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+        } else {
+          newIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+        }
+
+        selectResult(parseInt(items[newIndex].dataset.id));
+        items[newIndex].scrollIntoView({ block: 'nearest' });
+      }
+    });
+
+    // Focus search with Cmd/Ctrl+K
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      // Clear search with Escape
+      if (e.key === 'Escape' && searchInput.value) {
+        e.preventDefault();
+        searchInput.value = '';
+        updateSearchBoxState();
+        searchInput.focus();
+        showHistory();
+      }
+    });
+
+    // Resizable divider
+    const divider = document.getElementById('divider');
+    const panelLeft = document.getElementById('panelLeft');
+    let isDragging = false;
+
+    divider.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      divider.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      const newWidth = e.clientX;
+      const minWidth = 240;
+      const maxWidth = window.innerWidth * 0.5;
+
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        panelLeft.style.width = newWidth + 'px';
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+
+    // Top navigation
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const view = tab.dataset.view;
+        if (view === 'search') {
+          switchToSearch();
+        } else if (view === 'starred') {
+          switchToStarred();
+        } else if (view === 'transliterate') {
+          switchToEditor();
+        } else if (view === 'dictionaries') {
+          switchToDictionaries();
+        }
+        // Settings can be added later
+      });
+    });
+
+    // Theme toggle
+    const themeButtons = document.querySelectorAll('.theme-btn');
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      themeButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+    }
+
+    // Initialize theme from localStorage or default to dark
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+
+    themeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setTheme(btn.dataset.theme);
+      });
+    });
+
+    // Initial load - show search history
+    showHistory();
+  </script>
+</body>
+</html>
