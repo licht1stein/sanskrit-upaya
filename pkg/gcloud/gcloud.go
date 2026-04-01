@@ -12,19 +12,178 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 const ocrProjectIDPrefix = "sanskrit-upaya-ocr"
 
-// IsInstalled checks if gcloud CLI is available in PATH.
+var (
+	resolvedGcloudPath string
+	resolveOnce        sync.Once
+)
+
+// knownGcloudLocations returns platform-specific paths where gcloud may be installed.
+func knownGcloudLocations() []string {
+	home, _ := os.UserHomeDir()
+
+	switch runtime.GOOS {
+	case "darwin":
+		var paths []string
+		if home != "" {
+			paths = append(paths, filepath.Join(home, "google-cloud-sdk", "bin", "gcloud"))
+		}
+		paths = append(paths,
+			"/opt/homebrew/bin/gcloud",
+			"/opt/homebrew/share/google-cloud-sdk/bin/gcloud",
+			"/usr/local/bin/gcloud",
+			"/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
+			"/opt/google-cloud-sdk/bin/gcloud",
+		)
+		return paths
+	case "linux":
+		var paths []string
+		if home != "" {
+			paths = append(paths, filepath.Join(home, "google-cloud-sdk", "bin", "gcloud"))
+		}
+		paths = append(paths,
+			"/usr/bin/gcloud",
+			"/usr/local/bin/gcloud",
+			"/snap/bin/gcloud",
+			"/opt/google-cloud-sdk/bin/gcloud",
+		)
+		return paths
+	case "windows":
+		var paths []string
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			paths = append(paths,
+				filepath.Join(localAppData, "Google", "Cloud SDK", "google-cloud-sdk", "bin", "gcloud.cmd"),
+			)
+		}
+		paths = append(paths, `C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd`)
+		return paths
+	default:
+		return nil
+	}
+}
+
+// shellLookupPATH attempts to get the user's full shell PATH on macOS/Linux.
+// GUI apps on macOS inherit a minimal PATH that excludes user-installed tools.
+// This runs a login shell to discover the real PATH.
+func shellLookupPATH() string {
+	if runtime.GOOS == "windows" {
+		return ""
+	}
+
+	// Try the user's default shell first, then fall back to common shells
+	shells := []string{}
+	if s := os.Getenv("SHELL"); s != "" {
+		shells = append(shells, s)
+	}
+	shells = append(shells, "/bin/zsh", "/bin/bash")
+
+	for _, shell := range shells {
+		if _, err := os.Stat(shell); err != nil {
+			continue
+		}
+		cmd := exec.Command(shell, "-l", "-c", "echo $PATH")
+		cmd.Env = []string{
+			"HOME=" + os.Getenv("HOME"),
+			"USER=" + os.Getenv("USER"),
+			"PATH=" + os.Getenv("PATH"),
+		}
+		out, err := cmd.Output()
+		if err == nil {
+			if p := strings.TrimSpace(string(out)); p != "" {
+				return p
+			}
+		}
+	}
+	return ""
+}
+
+// resolveGcloudBinary finds the gcloud binary using multiple strategies:
+//  1. Standard PATH lookup (works when launched from terminal)
+//  2. Probe known installation locations (works when launched from Finder/Dock on macOS)
+//  3. Shell PATH discovery — run a login shell to get the full user PATH, then retry
+func resolveGcloudBinary() string {
+	// Strategy 1: standard PATH lookup
+	if p, err := exec.LookPath("gcloud"); err == nil {
+		return p
+	}
+
+	// Strategy 2: probe known installation locations
+	for _, candidate := range knownGcloudLocations() {
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
+		}
+	}
+
+	// Strategy 3: discover full PATH from login shell (macOS GUI apps get minimal PATH)
+	if shellPATH := shellLookupPATH(); shellPATH != "" {
+		// Temporarily override PATH for lookup
+		origPATH := os.Getenv("PATH")
+		os.Setenv("PATH", shellPATH)
+		p, err := exec.LookPath("gcloud")
+		os.Setenv("PATH", origPATH)
+		if err == nil {
+			return p
+		}
+	}
+
+	return ""
+}
+
+// GcloudPath returns the resolved absolute path to the gcloud binary.
+// The result is cached after the first call. Returns "" if gcloud is not found.
+func GcloudPath() string {
+	resolveOnce.Do(func() {
+		resolvedGcloudPath = resolveGcloudBinary()
+	})
+	return resolvedGcloudPath
+}
+
+// gcloudCommand creates an exec.Cmd for a gcloud invocation using the resolved binary path.
+// The parent directory of gcloud is added to the command's PATH so that gcloud's
+// own sub-processes (e.g. Python, bundled tools) can be found.
+func gcloudCommand(args ...string) *exec.Cmd {
+	gcloudBin := GcloudPath()
+	if gcloudBin == "" {
+		// Fall back to bare name — will fail, but gives a clear error
+		gcloudBin = "gcloud"
+	}
+
+	cmd := exec.Command(gcloudBin, args...)
+
+	// Ensure the directory containing gcloud is on PATH for child processes
+	gcloudDir := filepath.Dir(gcloudBin)
+	currentPATH := os.Getenv("PATH")
+	if !strings.Contains(currentPATH, gcloudDir) {
+		newPATH := gcloudDir + string(os.PathListSeparator) + currentPATH
+		env := os.Environ()
+		updated := make([]string, 0, len(env))
+		for _, e := range env {
+			if strings.HasPrefix(e, "PATH=") {
+				continue // skip old PATH, we'll add the new one
+			}
+			updated = append(updated, e)
+		}
+		updated = append(updated, "PATH="+newPATH)
+		cmd.Env = updated
+	}
+
+	return cmd
+}
+
+// IsInstalled checks if gcloud CLI is available.
+// On macOS, this probes known installation paths beyond the inherited PATH,
+// so it works even when the app is launched from Finder/Dock.
 func IsInstalled() bool {
-	_, err := exec.LookPath("gcloud")
-	return err == nil
+	return GcloudPath() != ""
 }
 
 // IsAuthenticated checks if gcloud CLI has an active account.
 func IsAuthenticated() bool {
-	cmd := exec.Command("gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)")
+	cmd := gcloudCommand("auth", "list", "--filter=status:ACTIVE", "--format=value(account)")
 	output, err := cmd.Output()
 	return err == nil && strings.TrimSpace(string(output)) != ""
 }
@@ -47,7 +206,7 @@ func HasApplicationDefaultCredentials() bool {
 
 // ProjectExists checks if a GCP project exists.
 func ProjectExists(projectID string) bool {
-	cmd := exec.Command("gcloud", "projects", "describe", projectID, "--format=value(projectId)")
+	cmd := gcloudCommand("projects", "describe", projectID, "--format=value(projectId)")
 	cmd.Stderr = nil
 	output, err := cmd.Output()
 	return err == nil && strings.TrimSpace(string(output)) == projectID
@@ -104,7 +263,7 @@ func GetOrCreateOCRProjectID() (string, error) {
 // RunCommand runs a gcloud command with output visible to user.
 // Returns true if the command succeeded.
 func RunCommand(args ...string) bool {
-	cmd := exec.Command("gcloud", args...)
+	cmd := gcloudCommand(args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -115,7 +274,7 @@ func RunCommand(args ...string) bool {
 // RunCommandWithOutput runs a gcloud command and streams output to the provided writers.
 // Returns true if the command succeeded.
 func RunCommandWithOutput(stdout, stderr io.Writer, args ...string) bool {
-	cmd := exec.Command("gcloud", args...)
+	cmd := gcloudCommand(args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	err := cmd.Run()
@@ -129,7 +288,7 @@ func RunCommandAsync(onLine func(line string), args ...string) <-chan bool {
 	result := make(chan bool, 1)
 
 	go func() {
-		cmd := exec.Command("gcloud", args...)
+		cmd := gcloudCommand(args...)
 
 		// Create pipes for stdout and stderr
 		stdoutPipe, err := cmd.StdoutPipe()
