@@ -667,6 +667,43 @@ func TestEscapeFTS(t *testing.T) {
 	}
 }
 
+func TestPrefixRange(t *testing.T) {
+	// For each prefix, the [lo, hi) range must contain exactly the strings that
+	// start with the prefix — i.e. be equivalent to LIKE 'prefix%'.
+	cases := []struct {
+		prefix   string
+		match    []string
+		notMatch []string
+	}{
+		{"dha", []string{"dha", "dhar", "dharma"}, []string{"dh", "dgz", "diz"}},
+		{"d", []string{"d", "dharma", "dz"}, []string{"", "c", "e"}},
+		{"धर्म", []string{"धर्म", "धर्मकाय"}, []string{"धर", "योग"}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.prefix, func(t *testing.T) {
+			lo, hi, ok := prefixRange(c.prefix)
+			if !ok {
+				t.Fatalf("prefixRange(%q) ok = false, want true", c.prefix)
+			}
+			for _, s := range c.match {
+				if !(s >= lo && s < hi) {
+					t.Errorf("%q should be in range [%q,%q) for prefix %q", s, lo, hi, c.prefix)
+				}
+			}
+			for _, s := range c.notMatch {
+				if s >= lo && s < hi {
+					t.Errorf("%q should NOT be in range [%q,%q) for prefix %q", s, lo, hi, c.prefix)
+				}
+			}
+		})
+	}
+
+	if _, _, ok := prefixRange(""); ok {
+		t.Error("prefixRange(\"\") ok = true, want false")
+	}
+}
+
 func TestBulkInserter(t *testing.T) {
 	db, err := Open(":memory:")
 	if err != nil {

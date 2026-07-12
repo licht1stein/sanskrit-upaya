@@ -43,7 +43,29 @@ func Open(path string) (*DB, error) {
 		return nil, fmt.Errorf("set mmap: %w", err)
 	}
 
-	return &DB{db: db}, nil
+	d := &DB{db: db}
+
+	// Self-heal older databases (built before the lowercase expression indexes
+	// existed) so exact/prefix searches use an index seek. Best-effort: never
+	// block opening the DB on this.
+	d.ensureSearchIndexes()
+
+	return d, nil
+}
+
+// ensureSearchIndexes creates the lowercase expression indexes if the words
+// table already exists. It is a no-op for freshly-opened empty databases
+// (e.g. in-memory test DBs) where the schema has not been created yet.
+func (d *DB) ensureSearchIndexes() {
+	var name string
+	err := d.db.QueryRow(
+		"SELECT name FROM sqlite_master WHERE type='table' AND name='words'",
+	).Scan(&name)
+	if err != nil {
+		return // table missing (or query failed) — nothing to index yet
+	}
+	d.db.Exec("CREATE INDEX IF NOT EXISTS idx_words_lower_iast ON words(LOWER(word_iast))")
+	d.db.Exec("CREATE INDEX IF NOT EXISTS idx_words_lower_deva ON words(LOWER(word_deva))")
 }
 
 // OpenForBulkInsert opens a database optimized for bulk inserts.
@@ -143,6 +165,12 @@ func (d *DB) RebuildFTS() error {
 	CREATE INDEX IF NOT EXISTS idx_words_article ON words(article_id);
 	CREATE INDEX IF NOT EXISTS idx_words_dict ON words(dict_code);
 	CREATE INDEX IF NOT EXISTS idx_articles_dict ON articles(dict_code);
+
+	-- Expression indexes on lowercased headwords so exact/prefix lookups
+	-- (which compare LOWER(word_iast)/LOWER(word_deva)) use an index seek
+	-- instead of a full table scan.
+	CREATE INDEX IF NOT EXISTS idx_words_lower_iast ON words(LOWER(word_iast));
+	CREATE INDEX IF NOT EXISTS idx_words_lower_deva ON words(LOWER(word_deva));
 
 	-- Create triggers for future inserts
 	CREATE TRIGGER IF NOT EXISTS words_ai AFTER INSERT ON words BEGIN
@@ -285,11 +313,27 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 		sqlText = wordSearchQuery(`(LOWER(w.word_iast) = ? OR LOWER(w.word_deva) = ?)`, dictFilter)
 
 	case ModePrefix:
-		// Prefix search using LIKE (more predictable than FTS5 prefix).
-		likeQuery := strings.ToLower(query) + "%"
-		args = append(args, likeQuery, likeQuery)
-		dictFilter := buildDictFilter("w.dict_code", dictCodes, &args)
-		sqlText = wordSearchQuery(`(LOWER(w.word_iast) LIKE ? OR LOWER(w.word_deva) LIKE ?)`, dictFilter)
+		// Prefix search. Expressed as a half-open range
+		// (LOWER(col) >= prefix AND LOWER(col) < prefixUpperBound) so it can
+		// use the idx_words_lower_* expression indexes instead of scanning.
+		// This is exactly equivalent to LOWER(col) LIKE 'prefix%'.
+		lowerQuery := strings.ToLower(query)
+		lo, hi, ok := prefixRange(lowerQuery)
+		if ok {
+			args = append(args, lo, hi, lo, hi)
+			dictFilter := buildDictFilter("w.dict_code", dictCodes, &args)
+			sqlText = wordSearchQuery(
+				`((LOWER(w.word_iast) >= ? AND LOWER(w.word_iast) < ?) `+
+					`OR (LOWER(w.word_deva) >= ? AND LOWER(w.word_deva) < ?))`,
+				dictFilter)
+		} else {
+			// Fall back to LIKE when an upper bound can't be computed
+			// (e.g. empty query, or a prefix at the top of Unicode).
+			likeQuery := lowerQuery + "%"
+			args = append(args, likeQuery, likeQuery)
+			dictFilter := buildDictFilter("w.dict_code", dictCodes, &args)
+			sqlText = wordSearchQuery(`(LOWER(w.word_iast) LIKE ? OR LOWER(w.word_deva) LIKE ?)`, dictFilter)
+		}
 
 	case ModeFuzzy:
 		// Fuzzy/contains: use LIKE for substring matching.
@@ -352,6 +396,28 @@ func wordSearchQuery(whereClause, dictFilter string) string {
 }
 
 // escapeFTS escapes special FTS5 characters in a query.
+// prefixRange returns the half-open range [lo, hi) that matches exactly the
+// strings beginning with prefix, so that `col >= lo AND col < hi` is equivalent
+// to `col LIKE prefix||'%'`. ok is false when prefix is empty or no upper bound
+// exists (prefix is at the top of the Unicode range), in which case callers
+// should fall back to LIKE.
+func prefixRange(prefix string) (lo, hi string, ok bool) {
+	if prefix == "" {
+		return "", "", false
+	}
+	r := []rune(prefix)
+	// Increment the last rune that can be incremented, dropping any trailing
+	// runes already at the maximum code point.
+	for i := len(r) - 1; i >= 0; i-- {
+		if r[i] < 0x10FFFF {
+			upper := append([]rune(nil), r[:i]...)
+			upper = append(upper, r[i]+1)
+			return prefix, string(upper), true
+		}
+	}
+	return "", "", false
+}
+
 func escapeFTS(s string) string {
 	// Wrap the term in double quotes so FTS5 treats special characters
 	// (*, ^, -, +, ~, (), <>, NEAR, etc.) as literal token text rather than
