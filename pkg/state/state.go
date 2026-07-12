@@ -119,7 +119,12 @@ func (s *Store) AddHistory(query string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
 
 	// Insert or update the history entry
 	_, err = tx.Exec(`
@@ -140,7 +145,11 @@ func (s *Store) AddHistory(query string) error {
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 // GetRecentHistory returns the most recent history entries.

@@ -3,6 +3,7 @@ package search
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -163,6 +164,7 @@ type BulkInserter struct {
 	stmtArticle *sql.Stmt
 	stmtWord    *sql.Stmt
 	stmtDict    *sql.Stmt
+	committed   bool
 }
 
 // NewBulkInserter creates a new bulk inserter with prepared statements.
@@ -225,6 +227,10 @@ func (b *BulkInserter) InsertWord(wordIAST, wordDeva string, articleID int64, di
 
 // Commit commits the transaction.
 func (b *BulkInserter) Commit() error {
+	if b.committed {
+		return errors.New("bulk inserter already committed")
+	}
+	b.committed = true
 	b.stmtArticle.Close()
 	b.stmtWord.Close()
 	b.stmtDict.Close()
@@ -267,94 +273,62 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 		return nil, nil
 	}
 
-	var results []Result
-	var rows *sql.Rows
-	var err error
-
-	// Build dict filter
-	dictFilter := ""
+	var sqlText string
 	args := []interface{}{}
 
 	switch mode {
 	case ModeExact:
-		// True exact match using SQL equality (case-insensitive)
-		// Note: Content is NOT fetched here for performance - fetch on-demand via GetArticleContent()
+		// True exact match using SQL equality (case-insensitive).
 		lowerQuery := strings.ToLower(query)
-		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
-		args = append([]interface{}{lowerQuery, lowerQuery}, args...)
-
-		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, w.word_iast, ''
-			FROM words w
-			JOIN articles a ON a.id = w.article_id
-			JOIN dicts d ON d.code = w.dict_code
-			WHERE (LOWER(w.word_iast) = ? OR LOWER(w.word_deva) = ?)`+dictFilter+`
-			ORDER BY d.favorite DESC, LENGTH(w.word_iast), d.code, w.word_iast
-			LIMIT 1000
-		`, args...)
+		args = append(args, lowerQuery, lowerQuery)
+		dictFilter := buildDictFilter("w.dict_code", dictCodes, &args)
+		sqlText = wordSearchQuery(`(LOWER(w.word_iast) = ? OR LOWER(w.word_deva) = ?)`, dictFilter)
 
 	case ModePrefix:
-		// Prefix search using LIKE (more predictable than FTS5 prefix)
+		// Prefix search using LIKE (more predictable than FTS5 prefix).
 		likeQuery := strings.ToLower(query) + "%"
-		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
-		args = append([]interface{}{likeQuery, likeQuery}, args...)
-
-		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, w.word_iast, ''
-			FROM words w
-			JOIN articles a ON a.id = w.article_id
-			JOIN dicts d ON d.code = w.dict_code
-			WHERE (LOWER(w.word_iast) LIKE ? OR LOWER(w.word_deva) LIKE ?)`+dictFilter+`
-			ORDER BY d.favorite DESC, LENGTH(w.word_iast), d.code, w.word_iast
-			LIMIT 1000
-		`, args...)
+		args = append(args, likeQuery, likeQuery)
+		dictFilter := buildDictFilter("w.dict_code", dictCodes, &args)
+		sqlText = wordSearchQuery(`(LOWER(w.word_iast) LIKE ? OR LOWER(w.word_deva) LIKE ?)`, dictFilter)
 
 	case ModeFuzzy:
-		// Fuzzy/contains: use LIKE for substring matching
+		// Fuzzy/contains: use LIKE for substring matching.
 		likeQuery := "%" + strings.ToLower(query) + "%"
-		dictFilter = buildDictFilter("w.dict_code", dictCodes, &args)
-		args = append([]interface{}{likeQuery, likeQuery}, args...)
-
-		rows, err = d.db.Query(`
-			SELECT d.code, d.name, a.id, w.word_iast, ''
-			FROM words w
-			JOIN articles a ON a.id = w.article_id
-			JOIN dicts d ON d.code = w.dict_code
-			WHERE (LOWER(w.word_iast) LIKE ? OR LOWER(w.word_deva) LIKE ?)`+dictFilter+`
-			ORDER BY d.favorite DESC, LENGTH(w.word_iast), d.code, w.word_iast
-			LIMIT 1000
-		`, args...)
+		args = append(args, likeQuery, likeQuery)
+		dictFilter := buildDictFilter("w.dict_code", dictCodes, &args)
+		sqlText = wordSearchQuery(`(LOWER(w.word_iast) LIKE ? OR LOWER(w.word_deva) LIKE ?)`, dictFilter)
 
 	case ModeReverse:
-		// Full-text search in article content
-		// Note: Full content is NOT fetched - only first word for sidebar
-		ftsQuery := escapeFTS(query)
-		dictFilter = buildDictFilter("a.dict_code", dictCodes, &args)
-		args = append([]interface{}{ftsQuery}, args...)
-
-		rows, err = d.db.Query(`
+		// Full-text search in article content.
+		args = append(args, escapeFTS(query))
+		dictFilter := buildDictFilter("a.dict_code", dictCodes, &args)
+		sqlText = `
 			SELECT d.code, d.name, a.id,
 				CASE WHEN INSTR(a.content, ' ') > 0
 					THEN SUBSTR(a.content, 1, INSTR(a.content, ' ') - 1)
 					ELSE SUBSTR(a.content, 1, 40)
-				END, ''
+				END
 			FROM articles_fts af
 			JOIN articles a ON a.id = af.rowid
 			JOIN dicts d ON d.code = a.dict_code
-			WHERE articles_fts MATCH ?`+dictFilter+`
+			WHERE articles_fts MATCH ?` + dictFilter + `
 			ORDER BY d.favorite DESC, d.code
-			LIMIT 1000
-		`, args...)
+			LIMIT 1000`
+
+	default:
+		return nil, fmt.Errorf("unknown search mode: %d", mode)
 	}
 
+	rows, err := d.db.Query(sqlText, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search query: %w", err)
 	}
 	defer rows.Close()
 
+	var results []Result
 	for rows.Next() {
 		var r Result
-		if err := rows.Scan(&r.DictCode, &r.DictName, &r.ArticleID, &r.Word, &r.Content); err != nil {
+		if err := rows.Scan(&r.DictCode, &r.DictName, &r.ArticleID, &r.Word); err != nil {
 			return nil, fmt.Errorf("scan result: %w", err)
 		}
 		results = append(results, r)
@@ -363,10 +337,26 @@ func (d *DB) Search(query string, mode SearchMode, dictCodes []string) ([]Result
 	return results, rows.Err()
 }
 
+// wordSearchQuery builds the shared headword-search SQL for the LIKE/exact
+// modes. whereClause is the mode-specific predicate; dictFilter is an optional
+// pre-built " AND ... IN (...)" fragment.
+func wordSearchQuery(whereClause, dictFilter string) string {
+	return `
+		SELECT d.code, d.name, a.id, w.word_iast
+		FROM words w
+		JOIN articles a ON a.id = w.article_id
+		JOIN dicts d ON d.code = w.dict_code
+		WHERE ` + whereClause + dictFilter + `
+		ORDER BY d.favorite DESC, LENGTH(w.word_iast), d.code, w.word_iast
+		LIMIT 1000`
+}
+
 // escapeFTS escapes special FTS5 characters in a query.
 func escapeFTS(s string) string {
-	// Escape double quotes by doubling them
-	return strings.ReplaceAll(s, `"`, `""`)
+	// Wrap the term in double quotes so FTS5 treats special characters
+	// (*, ^, -, +, ~, (), <>, NEAR, etc.) as literal token text rather than
+	// query operators. Embedded double quotes are escaped by doubling.
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
 
 // GetDicts returns all dictionary metadata.

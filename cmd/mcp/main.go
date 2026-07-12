@@ -329,7 +329,10 @@ func handleOCR(ctx context.Context, req *mcp.CallToolRequest, args OCRArgs) (*mc
 
 	var result *ocr.Result
 
-	// Detect input type: base64 data URI vs file path
+	// Detect input type: base64 data URI vs file path.
+	// File paths are validated (regular file, size, image magic bytes) inside
+	// RecognizeFile before any bytes are read, so an untrusted path cannot be
+	// used to read arbitrary non-image files off disk.
 	if strings.HasPrefix(args.ImageData, "data:image/") {
 		// Base64 data URI
 		result, err = client.RecognizeBase64(ctx, args.ImageData)
@@ -562,7 +565,13 @@ Note: Requires Google Cloud credentials. Run 'sanskrit-mcp ocr-setup' for setup 
 	}, handleOCR)
 
 	// Run server with stdio transport
-	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+	ctx := context.Background()
+	defer func() {
+		if ocrClient != nil {
+			ocrClient.Close()
+		}
+	}()
+	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

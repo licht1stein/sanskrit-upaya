@@ -3,6 +3,7 @@ package gcloud
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 const ocrProjectIDPrefix = "sanskrit-upaya-ocr"
@@ -146,13 +148,24 @@ func GcloudPath() string {
 // The parent directory of gcloud is added to the command's PATH so that gcloud's
 // own sub-processes (e.g. Python, bundled tools) can be found.
 func gcloudCommand(args ...string) *exec.Cmd {
+	return gcloudCommandContext(context.Background(), args...)
+}
+
+// queryTimeout bounds non-interactive gcloud status queries so a hung CLI
+// (e.g. network partition) cannot block the caller indefinitely.
+const queryTimeout = 30 * time.Second
+
+// gcloudCommandContext builds a gcloud command bound to ctx. Interactive
+// commands should pass context.Background(); status queries should pass a
+// context with a timeout (see runQuery).
+func gcloudCommandContext(ctx context.Context, args ...string) *exec.Cmd {
 	gcloudBin := GcloudPath()
 	if gcloudBin == "" {
 		// Fall back to bare name — will fail, but gives a clear error
 		gcloudBin = "gcloud"
 	}
 
-	cmd := exec.Command(gcloudBin, args...)
+	cmd := exec.CommandContext(ctx, gcloudBin, args...)
 
 	// Ensure the directory containing gcloud is on PATH for child processes
 	gcloudDir := filepath.Dir(gcloudBin)
@@ -183,7 +196,9 @@ func IsInstalled() bool {
 
 // IsAuthenticated checks if gcloud CLI has an active account.
 func IsAuthenticated() bool {
-	cmd := gcloudCommand("auth", "list", "--filter=status:ACTIVE", "--format=value(account)")
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+	defer cancel()
+	cmd := gcloudCommandContext(ctx, "auth", "list", "--filter=status:ACTIVE", "--format=value(account)")
 	output, err := cmd.Output()
 	return err == nil && strings.TrimSpace(string(output)) != ""
 }
@@ -206,7 +221,9 @@ func HasApplicationDefaultCredentials() bool {
 
 // ProjectExists checks if a GCP project exists.
 func ProjectExists(projectID string) bool {
-	cmd := gcloudCommand("projects", "describe", projectID, "--format=value(projectId)")
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+	defer cancel()
+	cmd := gcloudCommandContext(ctx, "projects", "describe", projectID, "--format=value(projectId)")
 	cmd.Stderr = nil
 	output, err := cmd.Output()
 	return err == nil && strings.TrimSpace(string(output)) == projectID

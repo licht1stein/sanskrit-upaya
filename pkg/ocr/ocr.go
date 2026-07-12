@@ -100,8 +100,9 @@ func (c *Client) RecognizeText(ctx context.Context, imageData []byte) (*Result, 
 		return c.recognizePDF(ctx, imageData)
 	}
 
-	// Apply timeout
-	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	// Apply a default timeout only when the caller has not set one, so a
+	// caller-supplied (longer or shorter) deadline is always respected.
+	ctx, cancel := withDefaultTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
 	// Create request for DOCUMENT_TEXT_DETECTION (better for printed text)
@@ -145,10 +146,20 @@ func (c *Client) RecognizeText(ctx context.Context, imageData []byte) (*Result, 
 	}, nil
 }
 
+// withDefaultTimeout derives a context with the given timeout only if the
+// parent context has no deadline of its own. This avoids silently shrinking a
+// caller-supplied longer deadline down to the default.
+func withDefaultTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
 // recognizePDF performs OCR on PDF data using BatchAnnotateFiles.
 func (c *Client) recognizePDF(ctx context.Context, pdfData []byte) (*Result, error) {
-	// Apply timeout
-	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	// Apply a default timeout only when the caller has not set one.
+	ctx, cancel := withDefaultTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
 	// Create request for PDF processing
@@ -220,13 +231,10 @@ func (c *Client) recognizePDF(ctx context.Context, pdfData []byte) (*Result, err
 
 // RecognizeFile performs OCR on an image file.
 func (c *Client) RecognizeFile(ctx context.Context, path string) (*Result, error) {
-	// Check file size before reading
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat file: %w", err)
-	}
-	if info.Size() > MaxImageSize {
-		return nil, ErrImageTooLarge
+	// Validate the path points at a supported image file before reading it.
+	// This guards callers (e.g. the MCP server) that forward untrusted paths.
+	if err := ValidateImageFile(path); err != nil {
+		return nil, err
 	}
 
 	imageData, err := os.ReadFile(path)
@@ -235,6 +243,38 @@ func (c *Client) RecognizeFile(ctx context.Context, path string) (*Result, error
 	}
 
 	return c.RecognizeText(ctx, imageData)
+}
+
+// ValidateImageFile verifies that path refers to a regular file, within the
+// size limit, whose contents are a supported image format (PNG/JPEG/TIFF/PDF).
+// It reads only the magic-byte header, not the whole file.
+func ValidateImageFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to stat file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%q is not a regular file", path)
+	}
+	if info.Size() > MaxImageSize {
+		return ErrImageTooLarge
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close()
+
+	header := make([]byte, 8)
+	n, err := f.Read(header)
+	if err != nil && n == 0 {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+	if detectImageFormat(header[:n]) == "" {
+		return ErrUnsupportedFormat
+	}
+	return nil
 }
 
 // RecognizeBase64 performs OCR on a base64-encoded image.
@@ -273,7 +313,7 @@ func CheckCredentials(ctx context.Context) error {
 	defer client.Close()
 
 	// Try a simple API call to verify credentials work
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := withDefaultTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// Use a minimal 1x1 PNG to test API access

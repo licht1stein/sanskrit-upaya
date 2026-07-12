@@ -647,12 +647,14 @@ func TestEscapeFTS(t *testing.T) {
 		input string
 		want  string
 	}{
-		{`simple`, `simple`},
-		{`with "quotes"`, `with ""quotes""`},
-		{`multiple "quote" "marks"`, `multiple ""quote"" ""marks""`},
-		{`"start`, `""start`},
-		{`end"`, `end""`},
-		{``, ``},
+		{`simple`, `"simple"`},
+		{`with "quotes"`, `"with ""quotes"""`},
+		{`multiple "quote" "marks"`, `"multiple ""quote"" ""marks"""`},
+		{`"start`, `"""start"`},
+		{`end"`, `"end"""`},
+		{``, `""`},
+		{`a*b^c-d`, `"a*b^c-d"`},
+		{`NEAR(x y)`, `"NEAR(x y)"`},
 	}
 
 	for _, tt := range tests {

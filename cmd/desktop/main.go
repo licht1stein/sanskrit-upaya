@@ -81,7 +81,11 @@ func main() {
 			log.Printf("Warning: Could not open database: %v", err)
 		} else {
 			log.Println("Database opened successfully")
-			defer db.Close()
+			defer func() {
+				if cerr := db.Close(); cerr != nil {
+					log.Printf("Warning: error closing database: %v", cerr)
+				}
+			}()
 		}
 	}
 
@@ -203,7 +207,9 @@ func main() {
 
 		w.ShowAndRun()
 		if db != nil {
-			db.Close()
+			if cerr := db.Close(); cerr != nil {
+				log.Printf("Warning: error closing database: %v", cerr)
+			}
 		}
 		return
 	}
@@ -228,9 +234,23 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	// Limit articles rendered per dictionary to avoid UI freeze
 	const maxArticlesPerDict = 10
 
-	// Content cache for prefetched articles
+	// Content cache for prefetched articles.
+	// maxContentCacheEntries bounds memory use over long sessions; when the cap
+	// is exceeded the cache is cleared (entries are cheap to re-fetch).
+	const maxContentCacheEntries = 2000
 	contentCache := make(map[int64]string)
 	var contentCacheMu sync.RWMutex
+
+	// storeContent inserts a value, evicting the whole cache if it has grown
+	// past the cap. Callers must NOT hold contentCacheMu.
+	storeContent := func(articleID int64, content string) {
+		contentCacheMu.Lock()
+		if len(contentCache) >= maxContentCacheEntries {
+			contentCache = make(map[int64]string)
+		}
+		contentCache[articleID] = content
+		contentCacheMu.Unlock()
+	}
 
 	// Check if content is cached
 	isContentCached := func(articleID int64) bool {
@@ -255,11 +275,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			return "", err
 		}
 
-		// Store in cache
-		contentCacheMu.Lock()
-		contentCache[articleID] = content
-		contentCacheMu.Unlock()
-
+		storeContent(articleID, content)
 		return content, nil
 	}
 
@@ -301,12 +317,10 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 				return
 			}
 
-			// Store in cache
-			contentCacheMu.Lock()
+			// Store in cache (respecting the size cap)
 			for id, content := range contents {
-				contentCache[id] = content
+				storeContent(id, content)
 			}
-			contentCacheMu.Unlock()
 		}()
 	}
 
@@ -994,6 +1008,14 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		go func() {
 			// Get search terms (including Devanagari transliteration)
 			searchTerms := transliterate.ToSearchTerms(query)
+			if len(searchTerms) == 0 {
+				fyne.Do(func() {
+					setStatus("Ready")
+					clearContent()
+					showEmpty("Type to search...")
+				})
+				return
+			}
 
 			// Get selected dictionaries for filtering
 			dictCodes := getSelectedDictCodes()
@@ -1550,7 +1572,9 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 	zoomSelect := widget.NewSelect(zoomOptions, func(selected string) {
 		// Parse percentage
 		var newZoom int
-		fmt.Sscanf(selected, "%d%%", &newZoom)
+		if _, err := fmt.Sscanf(selected, "%d%%", &newZoom); err != nil {
+			return
+		}
 		if newZoom > 0 {
 			zoomPercent = newZoom
 			applyZoom(newZoom)

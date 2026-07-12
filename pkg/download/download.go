@@ -16,8 +16,11 @@ const (
 	// DatabaseURL is the URL to download the dictionary database from.
 	DatabaseURL = "https://sanskrit.myke.blog/dict.db"
 
-	// AppSecret is sent as a header to authenticate the download.
-	// This prevents casual hotlinking but isn't meant to be secure.
+	// AppSecret is sent as a header with the download request.
+	// NOTE: This is NOT a security mechanism. It is compiled into every
+	// binary and trivially recoverable (e.g. `strings`), so it only deters
+	// casual hotlinking. Do not rely on it for access control — enforce that
+	// server-side (rate limiting, referrer checks, or per-user tokens).
 	AppSecret = "mitra-2024-sanskrit-app"
 
 	// HeaderName is the custom header name for authentication.
