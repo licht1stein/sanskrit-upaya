@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"log"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -367,13 +368,9 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		// Sort within each group by name
 		for _, group := range groupMap {
 			dicts := group.dicts
-			for i := 0; i < len(dicts)-1; i++ {
-				for j := i + 1; j < len(dicts); j++ {
-					if dicts[i].Name > dicts[j].Name {
-						dicts[i], dicts[j] = dicts[j], dicts[i]
-					}
-				}
-			}
+			sort.SliceStable(dicts, func(i, j int) bool {
+				return dicts[i].Name < dicts[j].Name
+			})
 		}
 
 		// Flatten to ordered list
@@ -416,21 +413,15 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 		for i, code := range dictOrder {
 			orderMap[code] = i
 		}
-		for i := 0; i < len(entries)-1; i++ {
-			for j := i + 1; j < len(entries); j++ {
-				posI, okI := orderMap[entries[i].DictCode]
-				posJ, okJ := orderMap[entries[j].DictCode]
-				if !okI {
-					posI = len(dictOrder)
-				}
-				if !okJ {
-					posJ = len(dictOrder)
-				}
-				if posI > posJ {
-					entries[i], entries[j] = entries[j], entries[i]
-				}
+		pos := func(code string) int {
+			if p, ok := orderMap[code]; ok {
+				return p
 			}
+			return len(dictOrder)
 		}
+		sort.SliceStable(entries, func(i, j int) bool {
+			return pos(entries[i].DictCode) < pos(entries[j].DictCode)
+		})
 	}
 
 	// Helper to get active dict codes (same as dictOrder)
@@ -472,13 +463,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			pillsContainer := box.Objects[1].(*fyne.Container)
 
 			// Update word label
-			wordText := r.Word
-			if r.Word != "" && !transliterate.IsDevanagari(r.Word) {
-				deva := transliterate.IASTToDevanagari(r.Word)
-				if deva != "" {
-					wordText = r.Word + " " + deva
-				}
-			}
+			wordText := formatWordHeader(r.Word, " ")
 			wordLabel.SetText(wordText)
 
 			// Update pills/count
@@ -590,13 +575,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			gr := &groupedResults[idx]
 
 			// Header: word in IAST and Devanagari
-			headerText := gr.Word
-			if gr.Word != "" && !transliterate.IsDevanagari(gr.Word) {
-				deva := transliterate.IASTToDevanagari(gr.Word)
-				if deva != "" {
-					headerText = gr.Word + "   " + deva
-				}
-			}
+			headerText := formatWordHeader(gr.Word, "   ")
 			contentHeaderLabel.SetText(headerText)
 
 			// Clear and rebuild content
@@ -1196,13 +1175,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 				wordLabel := box.Objects[0].(*widget.Label)
 				pillWidget := box.Objects[1].(*pillLabel)
 
-				wordText := sa.Word
-				if !transliterate.IsDevanagari(sa.Word) {
-					deva := transliterate.IASTToDevanagari(sa.Word)
-					if deva != "" {
-						wordText = sa.Word + " " + deva
-					}
-				}
+				wordText := formatWordHeader(sa.Word, " ")
 				wordLabel.SetText(wordText)
 				pillWidget.text = sa.DictCode
 				pillWidget.Refresh()
@@ -1235,13 +1208,7 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 			}
 
 			// Update header
-			headerText := sa.Word
-			if !transliterate.IsDevanagari(sa.Word) {
-				deva := transliterate.IASTToDevanagari(sa.Word)
-				if deva != "" {
-					headerText = sa.Word + "   " + deva
-				}
-			}
+			headerText := formatWordHeader(sa.Word, "   ")
 			starredContentHeader.SetText(headerText)
 
 			// Show article content with unstar button
@@ -1489,13 +1456,9 @@ func buildMainUI(w fyne.Window, a fyne.App, db *search.DB, settings *state.Store
 				}
 			}
 			// Sort inactive by name
-			for i := 0; i < len(inactiveDicts)-1; i++ {
-				for j := i + 1; j < len(inactiveDicts); j++ {
-					if inactiveDicts[i].Name > inactiveDicts[j].Name {
-						inactiveDicts[i], inactiveDicts[j] = inactiveDicts[j], inactiveDicts[i]
-					}
-				}
-			}
+			sort.SliceStable(inactiveDicts, func(i, j int) bool {
+				return inactiveDicts[i].Name < inactiveDicts[j].Name
+			})
 
 			for _, d := range inactiveDicts {
 				dictCode := d.Code

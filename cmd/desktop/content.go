@@ -5,7 +5,23 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/licht1stein/sanskrit-upaya/pkg/transliterate"
 )
+
+// formatWordHeader renders a headword for display, appending its Devanagari
+// transliteration (separated by sep) when the word is given in IAST. Non-IAST
+// (already-Devanagari) or empty words are returned unchanged.
+func formatWordHeader(word, sep string) string {
+	if word == "" || transliterate.IsDevanagari(word) {
+		return word
+	}
+	deva := transliterate.IASTToDevanagari(word)
+	if deva == "" {
+		return word
+	}
+	return word + sep + deva
+}
 
 // cleanHTML removes HTML tags and converts breaks to newlines
 func cleanHTML(content string) string {
