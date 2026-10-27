@@ -118,10 +118,10 @@ func main() {
 
 		var titleLabel, subtitleLabel *widget.Label
 		if dbStatus == download.DatabaseNeedsUpdate {
-			titleLabel = widget.NewLabel("Dictionary database needs to be re-downloaded (~670 MB).")
+			titleLabel = widget.NewLabel("Dictionary database needs to be re-downloaded (~750 MB).")
 			subtitleLabel = widget.NewLabel("This may be due to an app update or corrupted data.")
 		} else {
-			titleLabel = widget.NewLabel("Sanskrit Upāya needs to download the dictionary database (~670 MB).")
+			titleLabel = widget.NewLabel("Sanskrit Upāya needs to download the dictionary database (~750 MB).")
 			subtitleLabel = widget.NewLabel("This only happens once.")
 		}
 
@@ -149,7 +149,7 @@ func main() {
 			if *testDownload {
 				// Simulate download for testing
 				log.Println("Simulating download...")
-				total := int64(670 * 1024 * 1024) // 670 MB
+				total := int64(750 * 1024 * 1024) // 750 MB
 				for i := 0; i <= 10; i++ {
 					downloaded := total * int64(i) / 10
 					percent := float64(i) / 10.0

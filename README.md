@@ -75,7 +75,7 @@ sudo rpm -i sanskrit-upaya-*-1.x86_64.rpm
 
 Download the latest release from the [Releases](https://github.com/licht1stein/sanskrit-upaya/releases) page.
 
-On first run, the app will download the dictionary database (~670 MB).
+On first run, the app will download the dictionary database (~750 MB).
 
 ## Building from Source
 
